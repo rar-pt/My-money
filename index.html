@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101c2c">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MY MONEY">
+<title>MY MONEY v0.9</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101c2c;color:white;font-family:Arial;padding:18px}
+main{max-width:500px;margin:auto}
+h2{margin:5px 0}
+h3{margin:20px 0 12px}
+.muted{color:#9aabba;font-size:12px}
+.card{background:#1b2b3e;padding:17px;border-radius:16px;margin:14px 0}
+.total{font-size:29px;font-weight:bold;margin:12px 0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.wallet{background:#1b2b3e;padding:15px;border-radius:14px}
+.wallet strong{display:block;font-size:17px;margin-top:12px;overflow-wrap:anywhere}
+.green{color:#55d69e}
+.red{color:#ff8585}
+.orange{color:#ffc36b}
+input,select,textarea{width:100%;padding:13px;margin:7px 0 13px;background:#263a50;color:white;border:1px solid #40536a;border-radius:10px;font-size:15px}
+label{font-size:13px;color:#c3d0dc}
+button{padding:13px;border:0;border-radius:10px;background:#35bd86;color:#10251e;font-weight:bold;width:100%;font-size:14px}
+.secondary{background:#344b63;color:white}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.item{background:#1b2b3e;padding:13px;border-radius:12px;margin:9px 0;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.item small{display:block;color:#9aabba;margin-top:5px}
+.delete{width:auto;padding:8px;background:#51343d;color:white}
+.edit{width:auto;padding:8px;background:#344b63;color:white;margin-right:4px}
+.bar{height:9px;background:#34465a;border-radius:20px;overflow:hidden;margin:9px 0}
+.fill{height:100%;background:#35bd86;border-radius:20px}
+.budget-item{background:#1b2b3e;padding:14px;border-radius:13px;margin:10px 0}
+.hidden{display:none}
+.legend-row{display:flex;align-items:center;gap:9px;padding:7px 0;font-size:14px;border-bottom:1px solid #263a50}
+.legend-row:last-child{border-bottom:0}
+.dot{width:12px;height:12px;border-radius:50%;flex:none}
+.legend-row .grow{flex:1}
+#chartWrap{display:flex;justify-content:center;margin:6px 0 12px}
+textarea{min-height:90px;font-family:Arial;resize:vertical}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{width:auto;padding:11px 14px;background:#263a50;color:white;font-weight:normal;border:1px solid #40536a}
+.chip.active{background:#35bd86;color:#10251e;border-color:#35bd86;font-weight:bold}
+.money-wrap{position:relative}
+.money-wrap span{position:absolute;left:14px;top:7px;bottom:13px;display:flex;align-items:center;color:#9aabba;font-size:15px;pointer-events:none}
+.money-wrap input{padding-left:44px}
+.preset-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #263a50;font-size:14px}
+.preset-row:last-child{border-bottom:0}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#toasts{position:fixed;top:10px;left:10px;right:10px;z-index:99;max-width:500px;margin:auto}
+.toast{background:#2b3f55;border-left:5px solid #ffc36b;border-radius:12px;padding:13px 15px;margin-bottom:8px;box-shadow:0 6px 20px rgba(0,0,0,.45)}
+.toast.danger{border-left-color:#ff8585}
+.toast.ok{border-left-color:#35bd86}
+.toast b{display:block;margin-bottom:4px}
+.toast span{font-size:13px;color:#d6e0ea}
+</style>
+</head>
+<body>
+<div id="toasts"></div>
+<main>
+
+<div class="row">
+ <div>
+  <h2>MY MONEY 💰</h2>
+  <div class="muted">PERSONAL FINANCE MANAGER v0.9</div>
+ </div>
+ 🏦
+</div>
+
+<div class="card hidden" id="installCard">
+ <div class="row">
+  <div><strong>📲 Pasang aplikasi</strong><div class="muted">Taruh MY MONEY di layar utama, jalan offline.</div></div>
+  <button style="width:auto;padding:10px 14px" onclick="installApp()">Pasang</button>
+ </div>
+</div>
+
+<div class="card">
+ <div class="muted">TOTAL SELURUH SALDO</div>
+ <div class="total" id="total">Rp0</div>
+ <div class="muted">BCA + DANA + Tunai</div>
+</div>
+
+<h3>Dompet Saya</h3>
+<div class="grid">
+ <div class="wallet">🏦 BCA<strong id="bca">Rp0</strong></div>
+ <div class="wallet">💳 DANA<strong id="dana">Rp0</strong></div>
+ <div class="wallet">💵 Tunai<strong id="tunai">Rp0</strong></div>
+ <div class="wallet">📈 Total Pemasukan<strong class="green" id="income">Rp0</strong></div>
+</div>
+
+<section>
+<h3>⚡ Input Cepat</h3>
+<div class="card">
+ <div class="muted" style="margin-bottom:10px">Ketuk preset, isi nominal, simpan. Selesai.</div>
+ <div id="presetChips" class="chips"></div>
+ <div id="quickPanel" class="hidden" style="margin-top:16px">
+  <div class="row"><strong id="qTitle"></strong><span class="muted" id="qSub"></span></div>
+  <label>Nominal (Rp)</label>
+  <div class="money-wrap"><span>Rp</span><input id="qAmount" class="money" type="text" inputmode="numeric" autocomplete="off" placeholder="0" onkeydown="if(event.key==='Enter')saveQuick()"></div>
+  <div id="qSuggest" class="chips" style="margin:-4px 0 14px"></div>
+  <div id="qSingle">
+   <label>Rekening</label>
+   <select id="qAccount"></select>
+  </div>
+  <div id="qTransfer" class="hidden">
+   <label>Dari rekening</label>
+   <select id="qFrom"></select>
+   <label>Ke rekening</label>
+   <select id="qTo"></select>
+  </div>
+  <label>Tanggal</label>
+  <input type="date" id="qDate">
+  <label>Keterangan (opsional)</label>
+  <input id="qNote" placeholder="Opsional">
+  <div class="btns">
+   <button onclick="saveQuick()">Simpan</button>
+   <button class="secondary" onclick="closeQuick()">Batal</button>
+  </div>
+ </div>
+</div>
+</section>
+
+<section>
+<h3>📊 Monthly Budget</h3>
+<div class="card">
+ <label>Pilih bulan</label>
+ <input type="month" id="month">
+ <div class="muted">TOTAL ANGGARAN BULAN INI</div>
+ <div class="total" id="budgetTotal">Rp0</div>
+ <div class="row">
+  <span class="muted">Terpakai</span>
+  <strong id="budgetSpent">Rp0</strong>
+ </div>
+ <div class="bar"><div class="fill" id="overallBar"></div></div>
+ <div class="row">
+  <span class="muted">Sisa anggaran</span>
+  <strong class="green" id="budgetRemaining">Rp0</strong>
+ </div>
+ <p class="muted" id="budgetMessage">Atur anggaran bulanan lu di bawah.</p>
+ <button class="secondary" onclick="copyPrevBudget()">📋 Salin anggaran bulan lalu</button>
+</div>
+
+<div class="card">
+ <h3 style="margin-top:0">🔔 Smart Spending Alert</h3>
+ <p class="muted">
+  Peringatan muncul per kategori saat pengeluaran mencapai 80% dan 100% dari batas kategori itu, berapapun saldo rekeningmu.
+  Banner di dalam aplikasi + getar + bunyi selalu aktif. Notifikasi sistem butuh izin dan hanya jalan di Chrome.
+ </p>
+ <div class="btns">
+  <button onclick="enableNotifications()">Aktifkan Notifikasi</button>
+  <button class="secondary" onclick="testAlert()">Tes Alert</button>
+ </div>
+ <p class="muted" id="notificationStatus"></p>
+</div>
+
+<h3>Atur Anggaran Kategori</h3>
+<div class="card">
+ <label>Kategori pengeluaran</label>
+ <select id="budgetCategory"></select>
+ <label>Batas anggaran (Rp)</label>
+ <div class="money-wrap"><span>Rp</span><input id="budgetAmount" class="money" type="text" inputmode="numeric" autocomplete="off" placeholder="500.000"></div>
+ <button onclick="setBudget()">Simpan Anggaran</button>
+</div>
+
+<div id="budgetList"></div>
+
+<h3>📈 Pengeluaran per Kategori</h3>
+<div class="card">
+ <div id="chartWrap"><canvas id="chart" style="width:220px;height:220px"></canvas></div>
+ <div id="chartLegend"></div>
+</div>
+</section>
+
+<section>
+<h3 id="formTitle">+ Tambah Transaksi</h3>
+<div class="card">
+ <label>Jenis transaksi</label>
+ <select id="type" onchange="changeType()">
+  <option value="income">Pemasukan</option>
+  <option value="expense">Pengeluaran</option>
+  <option value="transfer">Transfer antar rekening</option>
+ </select>
+
+ <label>Nominal (Rp)</label>
+ <div class="money-wrap"><span>Rp</span><input id="amount" class="money" type="text" inputmode="numeric" autocomplete="off" placeholder="0"></div>
+
+ <div id="single">
+  <label>Rekening</label>
+  <select id="account">
+   <option>BCA</option><option>DANA</option><option>Tunai</option>
+  </select>
+ </div>
+
+ <div id="transferFields" class="hidden">
+  <label>Dari rekening</label>
+  <select id="from"><option>BCA</option><option>DANA</option><option>Tunai</option></select>
+  <label>Ke rekening</label>
+  <select id="to"><option>DANA</option><option>BCA</option><option>Tunai</option></select>
+ </div>
+
+ <div id="catWrap">
+  <label>Kategori</label>
+  <select id="category"></select>
+ </div>
+
+ <label>Keterangan</label>
+ <input id="note" placeholder="Keterangan transaksi">
+
+ <label>Tanggal</label>
+ <input type="date" id="date">
+
+ <button id="saveBtn" onclick="add()">Simpan Transaksi</button>
+ <button id="cancelBtn" class="secondary hidden" style="margin-top:10px" onclick="cancelEdit()">Batal Edit</button>
+</div>
+</section>
+
+<section>
+<h3>Ringkasan Bulan Terpilih</h3>
+<div class="grid">
+ <div class="wallet">Pemasukan<strong class="green" id="sumIn">Rp0</strong></div>
+ <div class="wallet">Pengeluaran<strong class="red" id="sumOut">Rp0</strong></div>
+ <div class="wallet" style="grid-column:1/-1">🔁 Pindah Saldo<strong id="sumTransfer">Rp0</strong><span class="muted">Transfer antar rekening sendiri. Tidak dihitung sebagai pemasukan/pengeluaran.</span></div>
+</div>
+</section>
+
+<section>
+<div class="row">
+ <h3>Riwayat Transaksi</h3>
+ <span class="muted" id="count"></span>
+</div>
+<select id="histFilter">
+ <option value="month">Tampilkan bulan terpilih</option>
+ <option value="all">Tampilkan semua bulan</option>
+</select>
+<div id="history"></div>
+</section>
+
+<section>
+<h3>⚖️ Cocokkan Saldo</h3>
+<div class="card">
+ <p class="muted">Isi saldo asli dari m-BCA, DANA, atau dompet tunai. Aplikasi menghitung selisihnya dengan catatan. Kosongkan yang tidak mau dicek.</p>
+ <label>Saldo asli BCA (Rp)</label>
+ <div class="money-wrap"><span>Rp</span><input id="realBCA" class="money" type="text" inputmode="numeric" autocomplete="off" placeholder="Saldo di m-BCA"></div>
+ <label>Saldo asli DANA (Rp)</label>
+ <div class="money-wrap"><span>Rp</span><input id="realDANA" class="money" type="text" inputmode="numeric" autocomplete="off" placeholder="Saldo di DANA"></div>
+ <label>Saldo asli Tunai (Rp)</label>
+ <div class="money-wrap"><span>Rp</span><input id="realTunai" class="money" type="text" inputmode="numeric" autocomplete="off" placeholder="Uang tunai di dompet"></div>
+ <button onclick="reconcile()">Hitung Selisih</button>
+ <div id="reconResult" style="margin-top:12px"></div>
+</div>
+</section>
+
+<section>
+<h3>⚙️ Kelola Preset</h3>
+<div class="card">
+ <label>Nama preset</label>
+ <input id="pmName" placeholder="Contoh: Kopi">
+ <label>Jenis</label>
+ <select id="pmType" onchange="pmChange()">
+  <option value="expense">Pengeluaran</option>
+  <option value="income">Pemasukan</option>
+  <option value="transfer">Transfer</option>
+ </select>
+ <div id="pmCatWrap">
+  <label>Kategori</label>
+  <select id="pmCategory"></select>
+ </div>
+ <div id="pmSingle">
+  <label>Rekening default</label>
+  <select id="pmAccount"></select>
+ </div>
+ <div id="pmTransfer" class="hidden">
+  <label>Dari rekening</label>
+  <select id="pmFrom"></select>
+  <label>Ke rekening</label>
+  <select id="pmTo"></select>
+ </div>
+ <button onclick="addPreset()">Tambah Preset</button>
+ <div id="presetList" style="margin-top:12px"></div>
+ <button class="secondary" style="margin-top:10px" onclick="resetPresets()">Kembalikan preset awal</button>
+</div>
+</section>
+
+<section>
+<h3>Backup &amp; Restore</h3>
+<div class="card">
+ <p class="muted" id="backupInfo"></p>
+ <p class="muted">Data tersimpan di browser. Kalau cache dihapus atau cara buka aplikasi berubah, data bisa hilang. Backup rutin ya.</p>
+ <div class="btns">
+  <button onclick="backup()">Ekspor JSON</button>
+  <button class="secondary" onclick="copyBackup()">Salin JSON</button>
+ </div>
+ <label style="display:block;margin-top:14px">Impor backup (.json)</label>
+ <input type="file" id="importFile" accept=".json,application/json" onchange="importBackup(event)">
+</div>
+</section>
+
+</main>
+
+<script>
+const KEY="my_money_v2";
+const BUDGET_KEY="my_money_budgets";
+const ALERT_KEY="my_money_alerts";
+const PRESET_KEY="my_money_presets";
+const ACCOUNTS=["BCA","DANA","Tunai"];
+const categories=["Makan","Transportasi","Kos","Belanja","Tagihan","Hiburan","Tabungan","Lain-lain"];
+const incomeCats=["Gaji","Bonus","Lain-lain"];
+
+let data={transactions:[]};
+let budgets={};
+let alerts={};
+let editingId=null;
+let swReg=null;
+let presets=[];
+let quickId=null;
+
+/* ---------- LOAD / SAVE ---------- */
+function load(){
+ try{
+  const saved=localStorage.getItem(KEY);
+  if(saved){
+   const parsed=JSON.parse(saved);
+   if(Array.isArray(parsed.transactions))data=parsed;
+  }else{
+   const old=JSON.parse(localStorage.getItem("my_money_data")||"[]");
+   data.transactions=old.map(t=>({...t,type:t.type==="income"?"income":"expense"}));
+   localStorage.setItem(KEY,JSON.stringify(data));
+  }
+  budgets=JSON.parse(localStorage.getItem(BUDGET_KEY)||"{}");
+  if(!budgets||typeof budgets!=="object"||Array.isArray(budgets))budgets={};
+  alerts=JSON.parse(localStorage.getItem(ALERT_KEY)||"{}");
+  if(!alerts||typeof alerts!=="object"||Array.isArray(alerts))alerts={};
+  const rawP=localStorage.getItem(PRESET_KEY);
+  if(rawP){
+   const arr=JSON.parse(rawP);
+   presets=Array.isArray(arr)?arr.map(cleanPreset).filter(Boolean):[];
+  }
+  if(!presets.length)presets=defaultPresets();
+ }catch(e){
+  alert("Data tidak bisa dibaca. Jangan hapus penyimpanan browser.");
+ }
+}
+
+function saveAlerts(){
+ localStorage.setItem(ALERT_KEY,JSON.stringify(alerts));
+}
+
+function save(){
+ localStorage.setItem(KEY,JSON.stringify(data));
+ localStorage.setItem(BUDGET_KEY,JSON.stringify(budgets));
+ saveAlerts();
+ localStorage.setItem(PRESET_KEY,JSON.stringify(presets));
+ render();
+}
+
+/* ---------- HELPERS ---------- */
+function money(n){
+ return "Rp"+Math.round(n).toLocaleString("id-ID");
+}
+function monthNow(){
+ return document.getElementById("month").value;
+}
+function esc(s){
+ return String(s).replace(/[&<>"']/g,c=>({
+  "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+ })[c]);
+}
+function newId(){
+ return Date.now()*1000+Math.floor(Math.random()*1000);
+}
+function isAdjust(t){
+ return t.category==="Penyesuaian";
+}
+function today(){
+ return new Date().toLocaleDateString("en-CA");
+}
+
+/* input nominal: prefix Rp + titik ribuan otomatis */
+function fmtDigits(str){
+ const d=String(str).replace(/\D/g,"").replace(/^0+(?=\d)/,"").slice(0,15);
+ return d.replace(/\B(?=(\d{3})+(?!\d))/g,".");
+}
+function parseMoney(str){
+ const d=String(str).replace(/\D/g,"").slice(0,15);
+ return d?Number(d):0;
+}
+function getMoney(id){
+ return parseMoney(document.getElementById(id).value);
+}
+function setMoney(id,n){
+ document.getElementById(id).value=(n===""||n==null)?"":fmtDigits(String(Math.round(n)));
+}
+document.addEventListener("input",function(e){
+ const el=e.target;
+ if(el&&el.classList&&el.classList.contains("money")){
+  el.value=fmtDigits(el.value);
+ }
+});
+
+function balances(list){
+ list=list||data.transactions;
+ let b={BCA:0,DANA:0,Tunai:0};
+ let inc=0,out=0;
+ list.forEach(t=>{
+  if(t.type==="income"){
+   b[t.account]=(b[t.account]||0)+t.amount;if(!isAdjust(t))inc+=t.amount;
+  }else if(t.type==="expense"){
+   b[t.account]=(b[t.account]||0)-t.amount;if(!isAdjust(t))out+=t.amount;
+  }else if(t.type==="transfer"){
+   b[t.from]=(b[t.from]||0)-t.amount;b[t.to]=(b[t.to]||0)+t.amount;
+  }
+ });
+ return {b,inc,out};
+}
+
+function monthExpenses(m){
+ const r={};
+ categories.forEach(c=>r[c]=0);
+ data.transactions.forEach(t=>{
+  if(t.type==="expense"&&!isAdjust(t)&&String(t.date).startsWith(m)){
+   r[t.category]=(r[t.category]||0)+t.amount;
+  }
+ });
+ return r;
+}
+
+/* ---------- ALERT & NOTIFIKASI ---------- */
+function showToast(title,body,kind){
+ const box=document.getElementById("toasts");
+ const el=document.createElement("div");
+ el.className="toast "+(kind||"");
+ el.innerHTML="<b>"+esc(title)+"</b><span>"+esc(body)+"</span>";
+ el.onclick=()=>el.remove();
+ box.appendChild(el);
+ setTimeout(()=>el.remove(),9000);
+}
+
+function beep(){
+ try{
+  const Ctx=window.AudioContext||window.webkitAudioContext;
+  if(!Ctx)return;
+  const ctx=new Ctx();
+  const o=ctx.createOscillator();
+  const g=ctx.createGain();
+  o.connect(g);g.connect(ctx.destination);
+  o.frequency.value=880;
+  g.gain.value=0.12;
+  o.start();
+  setTimeout(()=>{o.stop();ctx.close();},250);
+ }catch(e){}
+}
+
+async function sysNotify(title,body,tag){
+ try{
+  if(!("Notification" in window)||Notification.permission!=="granted")return false;
+  const opts={body:body,tag:tag,icon:"icon-192.png",badge:"icon-192.png",vibrate:[200,100,200]};
+  if(swReg){
+   await swReg.showNotification(title,opts);
+   return true;
+  }
+  new Notification(title,opts);
+  return true;
+ }catch(e){
+  return false;
+ }
+}
+
+function notify(title,body,tag,kind){
+ showToast(title,body,kind);
+ beep();
+ try{if(navigator.vibrate)navigator.vibrate([200,100,200]);}catch(e){}
+ sysNotify(title,body,tag);
+}
+
+function checkAlerts(month){
+ if(!month)return;
+ const limits=budgets[month]||{};
+ const spent=monthExpenses(month);
+ let changed=false,totalLimit=0,totalSpent=0;
+ const items=[];
+
+ categories.forEach(c=>{
+  const l=Number(limits[c]||0);
+  totalLimit+=l;
+  totalSpent+=spent[c]||0;
+  if(l>0)items.push({name:c,limit:l,used:spent[c]||0});
+ });
+
+ items.forEach(it=>{
+  const pct=it.used/it.limit*100;
+  const k80=month+"_"+it.name+"_80";
+  const k100=month+"_"+it.name+"_100";
+
+  // reset kalau pengeluaran turun lagi (hapus transaksi / anggaran dinaikkan)
+  if(pct<80){
+   if(alerts[k80]||alerts[k100]){delete alerts[k80];delete alerts[k100];changed=true;}
+  }else if(pct<100&&alerts[k100]){
+   delete alerts[k100];changed=true;
+  }
+
+  if(pct>=100){
+   if(!alerts[k100]){
+    alerts[k100]=true;alerts[k80]=true;changed=true;
+    notify("🚨 Anggaran habis!",
+     it.name+" sudah "+Math.round(pct)+"% ("+money(it.used)+" dari "+money(it.limit)+"). Sudah melewati batas!",
+     k100,"danger");
+   }
+  }else if(pct>=80){
+   if(!alerts[k80]){
+    alerts[k80]=true;changed=true;
+    notify("⚠️ Hati-hati, bro!",
+     it.name+" sudah "+Math.round(pct)+"%. Sisa anggaran "+money(it.limit-it.used)+".",
+     k80,"");
+   }
+  }
+ });
+
+ if(changed)saveAlerts();
+}
+
+function updateNotifStatus(msg){
+ const el=document.getElementById("notificationStatus");
+ if(msg){el.textContent=msg;return;}
+ if(!("Notification" in window)){
+  el.textContent="Status: Notifikasi sistem tidak didukung di sini (mis. browser bawaan Acode). Alert tetap muncul sebagai banner di dalam aplikasi. Buka lewat Chrome untuk notifikasi sistem.";
+  return;
+ }
+ const p=Notification.permission;
+ if(p==="granted")el.textContent="Status: Notifikasi aktif ✓"+(swReg?" (via service worker)":" (mode terbatas, sw.js tidak termuat)");
+ else if(p==="denied")el.textContent="Status: Diblokir. Di Chrome: ⋮ → Info → Setelan situs → Notifikasi → Izinkan.";
+ else el.textContent="Status: Belum diaktifkan. Banner di dalam aplikasi tetap aktif.";
+}
+
+async function enableNotifications(){
+ if(!("Notification" in window)){
+  updateNotifStatus();
+  showToast("Notifikasi sistem tidak tersedia","Buka aplikasi ini lewat Chrome (Acode → Open in browser). Banner in-app tetap aktif.","");
+  return;
+ }
+ try{
+  const permission=await Notification.requestPermission();
+  updateNotifStatus();
+  if(permission==="granted"){
+   notify("MY MONEY 🔔","Smart Spending Alert berhasil diaktifkan!","welcome","ok");
+  }
+ }catch(e){
+  updateNotifStatus("Status: Gagal meminta izin ("+e.message+").");
+ }
+}
+
+function testAlert(){
+ notify("⚠️ Tes Alert","Kalau banner ini muncul, alert dalam aplikasi berfungsi.","test_"+Date.now(),"");
+}
+
+let deferredInstall=null;
+window.addEventListener("beforeinstallprompt",function(e){
+ e.preventDefault();
+ deferredInstall=e;
+ document.getElementById("installCard").classList.remove("hidden");
+});
+window.addEventListener("appinstalled",function(){
+ deferredInstall=null;
+ document.getElementById("installCard").classList.add("hidden");
+ showToast("Terpasang ✓","MY MONEY sekarang ada di layar utama.","ok");
+});
+async function installApp(){
+ if(!deferredInstall)return;
+ deferredInstall.prompt();
+ try{await deferredInstall.userChoice;}catch(e){}
+ deferredInstall=null;
+ document.getElementById("installCard").classList.add("hidden");
+}
+
+async function initSW(){
+ if(!("serviceWorker" in navigator))return;
+ try{
+  swReg=await navigator.serviceWorker.register("sw.js");
+ }catch(e){
+  swReg=null;
+ }
+ updateNotifStatus();
+}
+
+/* ---------- BUDGET ---------- */
+function setBudget(){
+ const category=document.getElementById("budgetCategory").value;
+ const amount=getMoney("budgetAmount");
+ const m=monthNow();
+
+ if(!m||!Number.isSafeInteger(amount)||amount<0){
+  alert("Masukkan anggaran yang valid.");return;
+ }
+
+ if(!budgets[m])budgets[m]={};
+ budgets[m][category]=amount;
+ document.getElementById("budgetAmount").value="";
+ save();
+ checkAlerts(m);
+ showToast("Anggaran tersimpan","Batas "+category+": "+money(amount),"ok");
+}
+
+function renderBudget(){
+ const m=monthNow();
+ const limits=budgets[m]||{};
+ const spent=monthExpenses(m);
+ let total=0,used=0;
+
+ categories.forEach(c=>{
+  total+=Number(limits[c]||0);
+  used+=spent[c]||0;
+ });
+
+ const remaining=total-used;
+ document.getElementById("budgetTotal").textContent=money(total);
+ document.getElementById("budgetSpent").textContent=money(used);
+ document.getElementById("budgetRemaining").textContent=money(remaining);
+
+ const percent=total>0?Math.min(100,used/total*100):0;
+ const bar=document.getElementById("overallBar");
+ bar.style.width=percent+"%";
+ bar.style.background=used>total?"#ff8585":"#35bd86";
+
+ document.getElementById("budgetMessage").textContent=
+  total===0?"Belum ada anggaran untuk bulan ini.":
+  used>total?"Peringatan: pengeluaran sudah melebihi anggaran!":
+  percent>=80?"Perhatian: anggaran sudah terpakai minimal 80%.":
+  "Pengeluaran masih dalam batas anggaran.";
+
+ const list=document.getElementById("budgetList");
+ let html="";
+ categories.forEach(c=>{
+  const limit=Number(limits[c]||0);
+  const actual=spent[c]||0;
+  if(limit===0&&actual===0)return;
+
+  const pct=limit>0?Math.min(100,actual/limit*100):0;
+  const over=limit>0&&actual>limit;
+  const color=over?"#ff8585":pct>=80?"#ffc36b":"#35bd86";
+
+  html+=`<div class="budget-item">
+   <div class="row"><strong>${esc(c)}</strong>
+    <strong>${money(actual)} / ${money(limit)}</strong></div>
+   <div class="bar"><div class="fill" style="width:${pct}%;background:${color}"></div></div>
+   <div class="row"><small class="muted">${esc(budgetNote(limit,actual,m))}</small>
+   <button class="secondary" style="width:auto;padding:7px 10px" onclick="editBudget('${esc(c)}')">Atur</button></div>
+  </div>`;
+ });
+ list.innerHTML=html||'<div class="card muted">Belum ada kategori anggaran.</div>';
+}
+
+function editBudget(c){
+ document.getElementById("budgetCategory").value=c;
+ setMoney("budgetAmount",(budgets[monthNow()]||{})[c]||"");
+ document.getElementById("budgetCategory").scrollIntoView({behavior:"smooth"});
+}
+
+/* ---------- FORM TRANSAKSI ---------- */
+function fillCategorySelects(){
+ document.getElementById("budgetCategory").innerHTML=
+  categories.map(c=>"<option>"+esc(c)+"</option>").join("");
+ changeType();
+}
+
+function changeType(keepCategory){
+ const type=document.getElementById("type").value;
+ const transfer=type==="transfer";
+ document.getElementById("single").classList.toggle("hidden",transfer);
+ document.getElementById("transferFields").classList.toggle("hidden",!transfer);
+ document.getElementById("catWrap").classList.toggle("hidden",transfer);
+
+ const sel=document.getElementById("category");
+ const prev=sel.value;
+ const list=type==="income"?incomeCats:categories;
+ sel.innerHTML=list.map(c=>"<option>"+esc(c)+"</option>").join("");
+ if(keepCategory===true&&list.includes(prev))sel.value=prev;
+}
+
+function add(){
+ const type=document.getElementById("type").value;
+ const amount=getMoney("amount");
+ const date=document.getElementById("date").value;
+ const category=type==="transfer"?"Transfer":document.getElementById("category").value;
+ const note=document.getElementById("note").value.trim();
+ const account=document.getElementById("account").value;
+ const from=document.getElementById("from").value;
+ const to=document.getElementById("to").value;
+
+ if(!Number.isSafeInteger(amount)||amount<=0||!date){
+  alert("Nominal dan tanggal harus benar.");return;
+ }
+
+ if(type==="transfer"&&from===to){
+  alert("Rekening asal dan tujuan tidak boleh sama.");return;
+ }
+
+ const t={id:editingId||newId(),type,amount,date,category,note};
+ if(type==="income"||type==="expense")t.account=account;
+ if(type==="transfer"){t.from=from;t.to=to;}
+
+ const monthsToCheck=new Set([date.slice(0,7)]);
+ if(editingId){
+  const old=data.transactions.find(x=>x.id===editingId);
+  if(old)monthsToCheck.add(String(old.date).slice(0,7));
+  data.transactions=data.transactions.map(x=>x.id===editingId?t:x);
+ }else{
+  data.transactions.push(t);
+ }
+
+ const wasEditing=!!editingId;
+ cancelEdit(true);
+ save();
+ monthsToCheck.forEach(m=>checkAlerts(m));
+
+ document.getElementById("amount").value="";
+ document.getElementById("note").value="";
+ showToast(wasEditing?"Transaksi diperbarui":"Transaksi tersimpan",
+  money(amount)+(category?" · "+category:""),"ok");
+}
+
+function startEdit(id){
+ const t=data.transactions.find(x=>x.id===id);
+ if(!t)return;
+ editingId=id;
+ document.getElementById("type").value=t.type;
+ changeType();
+ setMoney("amount",t.amount);
+ document.getElementById("date").value=t.date;
+ document.getElementById("note").value=t.note||"";
+ if(t.type==="transfer"){
+  document.getElementById("from").value=t.from;
+  document.getElementById("to").value=t.to;
+ }else{
+  document.getElementById("account").value=t.account;
+  const sel=document.getElementById("category");
+  if(![...sel.options].some(o=>o.value===t.category)){
+   const o=document.createElement("option");o.textContent=t.category;sel.appendChild(o);
+  }
+  sel.value=t.category;
+ }
+ document.getElementById("formTitle").textContent="✏️ Edit Transaksi";
+ document.getElementById("saveBtn").textContent="Update Transaksi";
+ document.getElementById("cancelBtn").classList.remove("hidden");
+ document.getElementById("formTitle").scrollIntoView({behavior:"smooth"});
+}
+
+function cancelEdit(silent){
+ editingId=null;
+ document.getElementById("formTitle").textContent="+ Tambah Transaksi";
+ document.getElementById("saveBtn").textContent="Simpan Transaksi";
+ document.getElementById("cancelBtn").classList.add("hidden");
+ if(silent!==true){
+  document.getElementById("amount").value="";
+  document.getElementById("note").value="";
+ }
+}
+
+function repeatTx(id){
+ const src=data.transactions.find(x=>x.id===id);
+ if(!src||isAdjust(src))return;
+ const t={...src,id:newId(),date:today()};
+ data.transactions.push(t);
+ save();
+ checkAlerts(t.date.slice(0,7));
+ showToast("Transaksi diulang ✓",(t.category||"Transaksi")+" · "+money(t.amount)+" · hari ini","ok");
+}
+
+function remove(id){
+ if(!confirm("Hapus transaksi ini?"))return;
+ const t=data.transactions.find(x=>x.id===id);
+ data.transactions=data.transactions.filter(x=>x.id!==id);
+ if(editingId===id)cancelEdit();
+ save();
+ if(t)checkAlerts(String(t.date).slice(0,7));
+}
+
+/* ---------- RENDER ---------- */
+function render(){
+ const {b,inc}=balances();
+ const m=monthNow();
+
+ let mIn=0,mOut=0,mTr=0,mTrN=0;
+ data.transactions.forEach(t=>{
+  if(String(t.date).startsWith(m)&&!isAdjust(t)){
+   if(t.type==="income")mIn+=t.amount;
+   else if(t.type==="expense")mOut+=t.amount;
+   else if(t.type==="transfer"){mTr+=t.amount;mTrN++;}
+  }
+ });
+
+ document.getElementById("total").textContent=money(b.BCA+b.DANA+b.Tunai);
+ document.getElementById("bca").textContent=money(b.BCA);
+ document.getElementById("dana").textContent=money(b.DANA);
+ document.getElementById("tunai").textContent=money(b.Tunai);
+ document.getElementById("income").textContent=money(inc);
+ document.getElementById("sumIn").textContent=money(mIn);
+ document.getElementById("sumOut").textContent=money(mOut);
+ document.getElementById("sumTransfer").textContent=money(mTr)+(mTrN?" · "+mTrN+"x":"");
+
+ renderBudget();
+ renderChart();
+ renderPresets();
+ renderPresetManager();
+
+ const showAll=document.getElementById("histFilter").value==="all";
+ const list=data.transactions.filter(t=>showAll||String(t.date).startsWith(m));
+ const sorted=[...list].sort((a,b)=>String(b.date).localeCompare(String(a.date))||b.id-a.id);
+ document.getElementById("count").textContent=sorted.length+" transaksi";
+
+ document.getElementById("history").innerHTML=sorted.map(t=>{
+  const label=t.type==="transfer"?"Transfer "+t.from+" → "+t.to:
+   t.type==="income"?"Pemasukan · "+t.account:"Pengeluaran · "+t.account;
+  const sign=t.type==="income"?"+":t.type==="expense"?"−":"↔";
+  const cls=t.type==="income"?"green":t.type==="expense"?"red":"";
+  return `<div class="item">
+   <div><b>${esc(t.category||"Transaksi")}</b>
+   <small>${esc(label)}</small>
+   <small>${esc(t.note||"-")} · ${esc(t.date)}</small></div>
+   <div style="text-align:right"><b class="${cls}">${sign}${money(t.amount)}</b><br>
+   <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">
+   ${isAdjust(t)?"":`<button class="edit" onclick="repeatTx(${Number(t.id)})">Ulangi</button>`}<button class="edit" onclick="startEdit(${Number(t.id)})">Edit</button><button class="delete" onclick="remove(${Number(t.id)})">Hapus</button>
+   </div></div>
+  </div>`;
+ }).join("")||'<div class="card muted">Belum ada transaksi.</div>';
+}
+
+/* ---------- PRESET / INPUT CEPAT ---------- */
+function defaultPresets(){
+ return [
+  {id:1,name:"Makan",type:"expense",category:"Makan",account:"Tunai"},
+  {id:2,name:"Transport",type:"expense",category:"Transportasi",account:"DANA"},
+  {id:3,name:"Belanja",type:"expense",category:"Belanja",account:"DANA"},
+  {id:4,name:"Tagihan",type:"expense",category:"Tagihan",account:"BCA"},
+  {id:5,name:"Hiburan",type:"expense",category:"Hiburan",account:"DANA"},
+  {id:6,name:"Tabungan",type:"expense",category:"Tabungan",account:"BCA"},
+  {id:7,name:"Lain-lain",type:"expense",category:"Lain-lain",account:"Tunai"},
+  {id:8,name:"Gaji",type:"income",category:"Gaji",account:"BCA"},
+  {id:9,name:"Top up DANA",type:"transfer",from:"BCA",to:"DANA"},
+  {id:10,name:"Tarik tunai",type:"transfer",from:"BCA",to:"Tunai"}
+ ];
+}
+
+function cleanPreset(p){
+ if(!p||typeof p!=="object")return null;
+ const name=String(p.name||"").trim().slice(0,30);
+ if(!name)return null;
+ if(!["income","expense","transfer"].includes(p.type))return null;
+ const id=Number(p.id);
+ const r={id:Number.isFinite(id)?id:newId(),name,type:p.type};
+ if(p.type==="transfer"){
+  if(!ACCOUNTS.includes(p.from)||!ACCOUNTS.includes(p.to)||p.from===p.to)return null;
+  r.from=p.from;r.to=p.to;
+ }else{
+  if(!ACCOUNTS.includes(p.account))return null;
+  r.account=p.account;
+  r.category=String(p.category||(p.type==="income"?"Lain-lain":"Lain-lain"));
+ }
+ return r;
+}
+
+const ICONS={"Makan":"🍽️","Transportasi":"🚌","Kos":"🏠","Belanja":"🛒","Tagihan":"🧾","Hiburan":"🎮","Tabungan":"🐷","Lain-lain":"📦","Gaji":"💼","Bonus":"🎁"};
+function presetIcon(p){
+ if(p.type==="transfer")return "🔁";
+ return ICONS[p.category]||(p.type==="income"?"💰":"💸");
+}
+function typeLabel(t){
+ return t==="income"?"Pemasukan":t==="expense"?"Pengeluaran":"Transfer";
+}
+
+function fillAccountSelects(){
+ const opts=ACCOUNTS.map(a=>"<option>"+a+"</option>").join("");
+ ["qAccount","qFrom","qTo","pmAccount","pmFrom","pmTo"].forEach(id=>{
+  document.getElementById(id).innerHTML=opts;
+ });
+ document.getElementById("qFrom").value="BCA";
+ document.getElementById("qTo").value="DANA";
+ document.getElementById("pmFrom").value="BCA";
+ document.getElementById("pmTo").value="DANA";
+}
+
+function renderPresets(){
+ document.getElementById("presetChips").innerHTML=presets.map(p=>
+  `<button class="chip${p.id===quickId?" active":""}" onclick="openQuick(${Number(p.id)})">${presetIcon(p)} ${esc(p.name)}</button>`
+ ).join("")||'<span class="muted">Belum ada preset. Tambah di bagian Kelola Preset.</span>';
+}
+
+function openQuick(id){
+ const p=presets.find(x=>x.id===id);
+ if(!p)return;
+ quickId=id;
+ const tr=p.type==="transfer";
+ document.getElementById("qTitle").textContent=presetIcon(p)+" "+p.name;
+ document.getElementById("qSub").textContent=tr?"Pindah saldo · bukan pengeluaran":typeLabel(p.type)+(p.category?" · "+p.category:"");
+ document.getElementById("qSingle").classList.toggle("hidden",tr);
+ document.getElementById("qTransfer").classList.toggle("hidden",!tr);
+ if(tr){
+  document.getElementById("qFrom").value=p.from;
+  document.getElementById("qTo").value=p.to;
+ }else{
+  document.getElementById("qAccount").value=p.account;
+ }
+ document.getElementById("qAmount").value="";
+ document.getElementById("qNote").value="";
+ document.getElementById("qDate").value=today();
+ renderSuggest(p);
+ document.getElementById("quickPanel").classList.remove("hidden");
+ renderPresets();
+ document.getElementById("qAmount").focus();
+}
+
+function suggestAmounts(p){
+ const seen=[];
+ const hist=data.transactions
+  .filter(t=>!isAdjust(t)&&t.type===p.type&&(p.type==="transfer"?(t.from===p.from&&t.to===p.to):t.category===p.category))
+  .sort((a,b)=>String(b.date).localeCompare(String(a.date))||b.id-a.id);
+ for(const t of hist){
+  if(!seen.includes(t.amount))seen.push(t.amount);
+  if(seen.length>=4)break;
+ }
+ const fallback=p.type==="expense"?[10000,25000,50000]:[100000,500000,1000000];
+ for(const f of fallback){
+  if(seen.length>=4)break;
+  if(!seen.includes(f))seen.push(f);
+ }
+ return seen;
+}
+
+function renderSuggest(p){
+ const list=suggestAmounts(p);
+ document.getElementById("qSuggest").innerHTML=list.map(a=>
+  `<button class="chip" onclick="pickAmount(${Number(a)})">${money(a)}</button>`
+ ).join("");
+}
+
+function pickAmount(a){
+ const el=document.getElementById("qAmount");
+ setMoney("qAmount",a);
+ el.focus();
+}
+
+function closeQuick(){
+ quickId=null;
+ document.getElementById("quickPanel").classList.add("hidden");
+ renderPresets();
+}
+
+function saveQuick(){
+ const p=presets.find(x=>x.id===quickId);
+ if(!p)return;
+ const amount=getMoney("qAmount");
+ const date=document.getElementById("qDate").value;
+ const note=document.getElementById("qNote").value.trim();
+
+ if(!Number.isSafeInteger(amount)||amount<=0||!date){
+  alert("Isi nominal dengan benar.");return;
+ }
+
+ const t={id:newId(),type:p.type,amount,date,
+  category:p.type==="transfer"?"Transfer":p.category,
+  note:note};
+
+ if(p.type==="transfer"){
+  const from=document.getElementById("qFrom").value;
+  const to=document.getElementById("qTo").value;
+  if(from===to){alert("Rekening asal dan tujuan tidak boleh sama.");return;}
+  t.from=from;t.to=to;
+ }else{
+  t.account=document.getElementById("qAccount").value;
+ }
+
+ data.transactions.push(t);
+ closeQuick();
+ save();
+ checkAlerts(date.slice(0,7));
+ showToast("Tersimpan ✓",p.name+" · "+money(amount),"ok");
+}
+
+/* kelola preset */
+function pmChange(){
+ const type=document.getElementById("pmType").value;
+ const tr=type==="transfer";
+ document.getElementById("pmCatWrap").classList.toggle("hidden",tr);
+ document.getElementById("pmSingle").classList.toggle("hidden",tr);
+ document.getElementById("pmTransfer").classList.toggle("hidden",!tr);
+ const list=type==="income"?incomeCats:categories;
+ document.getElementById("pmCategory").innerHTML=list.map(c=>"<option>"+esc(c)+"</option>").join("");
+}
+
+function addPreset(){
+ const name=document.getElementById("pmName").value.trim();
+ const type=document.getElementById("pmType").value;
+ if(!name){alert("Isi nama preset.");return;}
+ const p={id:newId(),name,type};
+ if(type==="transfer"){
+  p.from=document.getElementById("pmFrom").value;
+  p.to=document.getElementById("pmTo").value;
+ }else{
+  p.account=document.getElementById("pmAccount").value;
+  p.category=document.getElementById("pmCategory").value;
+ }
+ const clean=cleanPreset(p);
+ if(!clean){alert("Preset tidak valid (rekening asal dan tujuan harus beda).");return;}
+ presets.push(clean);
+ document.getElementById("pmName").value="";
+ save();
+ showToast("Preset ditambahkan",clean.name,"ok");
+}
+
+function removePreset(id){
+ const p=presets.find(x=>x.id===id);
+ if(!p||!confirm("Hapus preset \""+p.name+"\"?"))return;
+ presets=presets.filter(x=>x.id!==id);
+ if(quickId===id)closeQuick();
+ save();
+}
+
+function resetPresets(){
+ if(!confirm("Kembalikan semua preset ke bawaan? Preset buatanmu akan hilang."))return;
+ presets=defaultPresets();
+ closeQuick();
+ save();
+}
+
+function renderPresetManager(){
+ document.getElementById("presetList").innerHTML=presets.map(p=>{
+  const detail=p.type==="transfer"?"Transfer "+p.from+" → "+p.to:typeLabel(p.type)+" · "+p.category+" · "+p.account;
+  return `<div class="preset-row">
+   <div><b>${presetIcon(p)} ${esc(p.name)}</b><br><span class="muted">${esc(detail)}</span></div>
+   <button class="delete" onclick="removePreset(${Number(p.id)})">Hapus</button>
+  </div>`;
+ }).join("")||'<div class="muted">Belum ada preset.</div>';
+}
+
+/* ---------- COCOKKAN SALDO ---------- */
+function reconcile(){
+ const b=balances().b;
+ let html="";
+ ACCOUNTS.forEach(a=>{
+  const raw=document.getElementById("real"+a).value.trim();
+  if(raw==="")return;
+  const real=parseMoney(raw);
+  if(!Number.isFinite(real))return;
+  const noted=Math.round(b[a]||0);
+  const diff=Math.round(real-noted);
+  if(diff===0){
+   html+=`<div class="budget-item"><div class="row"><strong>${a}</strong><strong class="green">Cocok ✓</strong></div>
+    <small class="muted">Catatan dan saldo asli sama: ${money(noted)}</small></div>`;
+  }else{
+   const less=diff<0;
+   html+=`<div class="budget-item">
+    <div class="row"><strong>${a}</strong>
+     <strong class="${less?"red":"orange"}">${less?"Kurang":"Lebih"} ${money(Math.abs(diff))}</strong></div>
+    <small class="muted">Catatan ${money(noted)} · Asli ${money(real)}</small>
+    <small class="muted">${less?"Ada pengeluaran yang belum tercatat?":"Ada pemasukan yang belum tercatat?"} Kalau tahu penyebabnya, catat manual dengan kategori yang tepat.</small>
+    <button class="secondary" style="margin-top:10px" onclick="reconcileAdjust('${a}',${diff})">Catat sebagai penyesuaian</button>
+   </div>`;
+  }
+ });
+ document.getElementById("reconResult").innerHTML=html||'<p class="muted">Isi minimal satu saldo asli.</p>';
+}
+
+function reconcileAdjust(acc,diff){
+ if(!ACCOUNTS.includes(acc)||!Number.isSafeInteger(diff)||diff===0)return;
+ if(!confirm("Catat penyesuaian "+acc+" sebesar "+money(Math.abs(diff))+(diff<0?" (mengurangi)":" (menambah)")+"?\nPenyesuaian tidak dihitung di anggaran maupun chart."))return;
+ data.transactions.push({
+  id:newId(),type:diff>0?"income":"expense",amount:Math.abs(diff),
+  date:today(),category:"Penyesuaian",note:"Penyesuaian saldo "+acc,account:acc
+ });
+ save();
+ reconcile();
+ showToast("Penyesuaian dicatat",acc+" kini cocok dengan saldo asli.","ok");
+}
+
+/* ---------- JATAH HARIAN ---------- */
+function daysLeftIn(m){
+ const [y,mo]=m.split("-").map(Number);
+ const dim=new Date(y,mo,0).getDate();
+ const now=new Date();
+ const cur=now.getFullYear()*12+now.getMonth();
+ const sel=y*12+(mo-1);
+ if(sel<cur)return 0;
+ if(sel>cur)return dim;
+ return dim-now.getDate()+1;
+}
+
+function budgetNote(limit,actual,m){
+ if(limit===0)return "Belum dianggarkan";
+ if(actual>limit)return "Melebihi batas "+money(actual-limit);
+ const remaining=limit-actual;
+ if(remaining===0)return "Anggaran habis";
+ const days=daysLeftIn(m);
+ let t=money(remaining)+" tersisa";
+ if(days>0)t+=" · ≈"+money(Math.floor(remaining/days))+"/hari ("+days+" hari lagi)";
+ return t;
+}
+
+/* ---------- CHART ---------- */
+const CHART_COLORS=["#35bd86","#5ab0ff","#ffc36b","#ff8585","#b48cff","#4fd1c5","#f78fb3","#9aabba"];
+
+function renderChart(){
+ const m=monthNow();
+ const spent=monthExpenses(m);
+ const names=Object.keys(spent).filter(c=>spent[c]>0).sort((a,b)=>spent[b]-spent[a]);
+ const total=names.reduce((s,c)=>s+spent[c],0);
+
+ const cv=document.getElementById("chart");
+ const legend=document.getElementById("chartLegend");
+ const size=220,dpr=window.devicePixelRatio||1;
+ cv.width=size*dpr;cv.height=size*dpr;
+ const ctx=cv.getContext("2d");
+ ctx.setTransform(dpr,0,0,dpr,0,0);
+ ctx.clearRect(0,0,size,size);
+
+ const cx=size/2,cy=size/2,R=100,r=62,mid=(R+r)/2;
+ ctx.lineWidth=R-r;
+
+ if(total===0){
+  ctx.beginPath();ctx.arc(cx,cy,mid,0,Math.PI*2);
+  ctx.strokeStyle="#34465a";ctx.stroke();
+  ctx.fillStyle="#9aabba";ctx.font="13px Arial";
+  ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillText("Belum ada",cx,cy-8);
+  ctx.fillText("pengeluaran",cx,cy+10);
+  legend.innerHTML="";
+  return;
+ }
+
+ let ang=-Math.PI/2;
+ names.forEach((c,i)=>{
+  const a=spent[c]/total*Math.PI*2;
+  ctx.beginPath();
+  ctx.arc(cx,cy,mid,ang,ang+a);
+  ctx.strokeStyle=CHART_COLORS[i%CHART_COLORS.length];
+  ctx.stroke();
+  ang+=a;
+ });
+
+ ctx.fillStyle="#9aabba";ctx.font="11px Arial";
+ ctx.textAlign="center";ctx.textBaseline="middle";
+ ctx.fillText("TOTAL",cx,cy-12);
+ ctx.fillStyle="#ffffff";ctx.font="bold 13px Arial";
+ ctx.fillText(money(total),cx,cy+7);
+
+ legend.innerHTML=names.map((c,i)=>{
+  const pct=Math.round(spent[c]/total*100);
+  return `<div class="legend-row">
+   <span class="dot" style="background:${CHART_COLORS[i%CHART_COLORS.length]}"></span>
+   <span class="grow">${esc(c)}</span>
+   <span>${money(spent[c])} · ${pct}%</span>
+  </div>`;
+ }).join("");
+}
+
+/* ---------- SALIN ANGGARAN BULAN LALU ---------- */
+function prevMonthOf(m){
+ const [y,mo]=m.split("-").map(Number);
+ const d=new Date(y,mo-2,1);
+ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+}
+
+function copyPrevBudget(){
+ const m=monthNow();
+ if(!m)return;
+ const prev=prevMonthOf(m);
+ const src=budgets[prev];
+ if(!src||!Object.keys(src).length){
+  alert("Belum ada anggaran di bulan "+prev+".");return;
+ }
+ const existing=budgets[m]&&Object.keys(budgets[m]).length;
+ if(existing&&!confirm("Anggaran bulan ini sudah ada. Timpa dengan anggaran bulan "+prev+"?"))return;
+ budgets[m]={...src};
+ save();
+ checkAlerts(m);
+ showToast("Anggaran disalin","Dari bulan "+prev+" ke "+m+".","ok");
+}
+
+/* ---------- BACKUP & RESTORE ---------- */
+const BACKUP_KEY="my_money_last_backup";
+
+function markBackup(){
+ localStorage.setItem(BACKUP_KEY,String(Date.now()));
+ updateBackupInfo();
+}
+
+function updateBackupInfo(){
+ const el=document.getElementById("backupInfo");
+ const last=Number(localStorage.getItem(BACKUP_KEY)||0);
+ if(!last){el.textContent="Backup terakhir: belum pernah.";return;}
+ const days=Math.floor((Date.now()-last)/86400000);
+ el.textContent="Backup terakhir: "+new Date(last).toLocaleDateString("id-ID")+
+  (days>0?" ("+days+" hari lalu)":" (hari ini)");
+}
+
+function backupReminder(){
+ if(!data.transactions.length)return;
+ const last=Number(localStorage.getItem(BACKUP_KEY)||0);
+ const days=last?Math.floor((Date.now()-last)/86400000):null;
+ if(days===null||days>=7){
+  showToast("💾 Waktunya backup",
+   days===null?"Data lu belum pernah di-backup. Ekspor JSON sekarang biar aman.":
+   "Sudah "+days+" hari sejak backup terakhir. Ekspor JSON biar aman.","");
+ }
+}
+function backupContent(){
+ return {app:"MY MONEY",version:"0.9",data,budgets,alerts,presets};
+}
+
+function backup(){
+ const blob=new Blob([JSON.stringify(backupContent(),null,2)],{type:"application/json"});
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement("a");
+ a.href=url;
+ a.download="my-money-backup.json";
+ document.body.appendChild(a);
+ a.click();
+ a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+ markBackup();
+}
+
+async function copyBackup(){
+ const text=JSON.stringify(backupContent());
+ try{
+  await navigator.clipboard.writeText(text);
+  markBackup();
+  showToast("Backup disalin","Tempel ke catatan/WA-mu sendiri untuk disimpan.","ok");
+ }catch(e){
+  prompt("Salin teks backup ini:",text);
+ }
+}
+
+function cleanTransaction(t){
+ if(!t||typeof t!=="object")return null;
+ const amount=Number(t.amount);
+ if(!["income","expense","transfer"].includes(t.type))return null;
+ if(!Number.isSafeInteger(amount)||amount<=0)return null;
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(String(t.date)))return null;
+ const r={
+  id:Number.isFinite(Number(t.id))?Number(t.id):newId(),
+  type:t.type,amount,date:t.date,
+  category:String(t.category||""),
+  note:String(t.note||"")
+ };
+ if(t.type==="transfer"){
+  if(!ACCOUNTS.includes(t.from)||!ACCOUNTS.includes(t.to))return null;
+  r.from=t.from;r.to=t.to;
+ }else{
+  if(!ACCOUNTS.includes(t.account))return null;
+  r.account=t.account;
+ }
+ return r;
+}
+
+function importBackup(ev){
+ const file=ev.target.files[0];
+ if(!file)return;
+ const reader=new FileReader();
+ reader.onload=()=>{
+  try{
+   const c=JSON.parse(reader.result);
+   const txs=(c.data&&c.data.transactions)||c.transactions;
+   if(!Array.isArray(txs))throw new Error("Format backup tidak dikenali.");
+   const clean=txs.map(cleanTransaction).filter(Boolean);
+   const skipped=txs.length-clean.length;
+   if(!confirm("Impor "+clean.length+" transaksi"+(skipped?" ("+skipped+" dilewati karena tidak valid)":"")+
+     "?\nData yang ada sekarang akan DIGANTI."))return;
+   data={transactions:clean};
+   const b=c.budgets;
+   budgets=(b&&typeof b==="object"&&!Array.isArray(b))?b:{};
+   const a=c.alerts;
+   alerts=(a&&typeof a==="object"&&!Array.isArray(a))?a:{};
+   if(Array.isArray(c.presets)){
+    const pr=c.presets.map(cleanPreset).filter(Boolean);
+    presets=pr.length?pr:defaultPresets();
+   }
+   save();
+   showToast("Impor berhasil",clean.length+" transaksi dipulihkan.","ok");
+  }catch(e){
+   alert("Gagal impor: "+e.message);
+  }
+  ev.target.value="";
+ };
+ reader.readAsText(file);
+}
+
+/* ---------- INIT ---------- */
+document.getElementById("month").value=new Date().toLocaleDateString("en-CA").slice(0,7);
+document.getElementById("month").addEventListener("change",render);
+document.getElementById("histFilter").addEventListener("change",render);
+document.getElementById("date").value=new Date().toLocaleDateString("en-CA");
+
+load();
+localStorage.setItem(PRESET_KEY,JSON.stringify(presets));
+fillAccountSelects();
+fillCategorySelects();
+pmChange();
+render();
+updateNotifStatus();
+updateBackupInfo();
+if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(function(){});
+setTimeout(backupReminder,600);
+initSW();
+</script>
+</body>
+</html>
