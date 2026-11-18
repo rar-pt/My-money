@@ -10,7 +10,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="MY MONEY">
-<title>MY MONEY v1.0</title>
+<title>MY MONEY v1.3</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#101c2c;color:white;font-family:Arial;padding:18px}
@@ -53,6 +53,17 @@ textarea{min-height:90px;font-family:Arial;resize:vertical}
 .money-wrap input{padding-left:44px}
 .preset-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #263a50;font-size:14px}
 .preset-row:last-child{border-bottom:0}
+#lock{position:fixed;top:0;left:0;right:0;bottom:0;background:#101c2c;z-index:200;display:flex;align-items:center;justify-content:center;overflow-y:auto}
+#lock.hidden{display:none}
+.lock-box{width:100%;max-width:320px;text-align:center;padding:20px}
+.dots{display:flex;justify-content:center;gap:14px;margin:18px 0 10px;height:16px}
+.pdot{width:14px;height:14px;border-radius:50%;border:2px solid #40536a}
+.pdot.on{background:#35bd86;border-color:#35bd86}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+.key{padding:18px 0;font-size:22px;background:#1b2b3e;color:white;border-radius:14px}
+.linkbtn{background:none;color:#9aabba;font-weight:normal;margin-top:6px}
+.legend-inline{display:flex;gap:14px;margin:4px 0 10px;font-size:12px;color:#9aabba}
+.legend-inline i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px}
 .btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 #toasts{position:fixed;top:10px;left:10px;right:10px;z-index:99;max-width:500px;margin:auto}
 .toast{background:#2b3f55;border-left:5px solid #ffc36b;border-radius:12px;padding:13px 15px;margin-bottom:8px;box-shadow:0 6px 20px rgba(0,0,0,.45)}
@@ -64,12 +75,25 @@ textarea{min-height:90px;font-family:Arial;resize:vertical}
 </head>
 <body>
 <div id="toasts"></div>
+
+<div id="lock" class="hidden">
+ <div class="lock-box">
+  <div style="font-size:42px">🔒</div>
+  <h2 id="lockTitle">Masukkan PIN</h2>
+  <div class="muted" id="lockSub"></div>
+  <div class="dots" id="lockDots"></div>
+  <div class="muted" id="lockMsg" style="min-height:18px;color:#ff8585"></div>
+  <div class="keypad" id="lockPad"></div>
+  <button class="secondary" id="lockCancel" style="margin-top:16px" onclick="cancelLock()">Batal</button>
+  <button class="linkbtn" id="lockForgot" onclick="forgotPin()">Lupa PIN?</button>
+ </div>
+</div>
 <main>
 
 <div class="row">
  <div>
   <h2>MY MONEY 💰</h2>
-  <div class="muted">PERSONAL FINANCE MANAGER v1.0</div>
+  <div class="muted">PERSONAL FINANCE MANAGER v1.3</div>
  </div>
  🏦
 </div>
@@ -81,19 +105,38 @@ textarea{min-height:90px;font-family:Arial;resize:vertical}
  </div>
 </div>
 
+<div class="card hidden" id="onboard">
+ <h3 style="margin-top:0">👋 Selamat datang di MY MONEY</h3>
+ <p class="muted">Mulai dengan menambahkan rekening bank atau dompet digital yang kamu pakai. Ketuk salah satu di bawah, atau ketik nama sendiri di bagian "Tambah rekening / dompet". Kamu bisa menambah lebih dari satu kapan saja.</p>
+ <div id="onboardBanks" class="chips"></div>
+</div>
+
 <div class="card">
  <div class="muted">TOTAL SELURUH SALDO</div>
  <div class="total" id="total">Rp0</div>
- <div class="muted">BCA + DANA + Tunai</div>
+ <div class="muted">Gabungan seluruh rekening dan dompet yang kamu tambahkan</div>
 </div>
 
 <h3>Dompet Saya</h3>
-<div class="grid">
- <div class="wallet">🏦 BCA<strong id="bca">Rp0</strong></div>
- <div class="wallet">💳 DANA<strong id="dana">Rp0</strong></div>
- <div class="wallet">💵 Tunai<strong id="tunai">Rp0</strong></div>
- <div class="wallet">📈 Total Pemasukan<strong class="green" id="income">Rp0</strong></div>
+<div class="grid" id="walletGrid"></div>
+<div class="card">
+ <strong>➕ Tambah rekening / dompet</strong>
+ <div class="muted" style="margin:8px 0">Pilih cepat:</div>
+ <div id="quickBanks" class="chips" style="margin-bottom:12px"></div>
+ <label>Nama akun</label>
+ <input id="newAccountName" maxlength="24" placeholder="Contoh: BRI, Mandiri, GoPay, SeaBank">
+ <label>Jenis akun</label>
+ <select id="newAccountType">
+  <option value="bank">Bank</option>
+  <option value="ewallet">E-wallet</option>
+  <option value="cash">Tunai</option>
+  <option value="other">Lainnya</option>
+ </select>
+ <button onclick="addAccount()">Tambah Akun</button>
+ <div id="accountList" style="margin-top:12px"></div>
 </div>
+
+<div id="appBody">
 
 <section>
 <h3>⚡ Input Cepat</h3>
@@ -114,6 +157,8 @@ textarea{min-height:90px;font-family:Arial;resize:vertical}
    <select id="qFrom"></select>
    <label>Ke rekening</label>
    <select id="qTo"></select>
+   <label>Biaya admin (opsional)</label>
+   <div class="money-wrap"><span>Rp</span><input id="qFee" class="money" type="text" inputmode="numeric" autocomplete="off" placeholder="0"></div>
   </div>
   <label>Tanggal</label>
   <input type="date" id="qDate">
@@ -143,7 +188,7 @@ textarea{min-height:90px;font-family:Arial;resize:vertical}
   <span class="muted">Sisa anggaran</span>
   <strong class="green" id="budgetRemaining">Rp0</strong>
  </div>
- <p class="muted" id="budgetMessage">Atur anggaran bulanan lu di bawah.</p>
+ <p class="muted" id="budgetMessage">Atur anggaran bulanan kamu di bawah.</p>
  <button class="secondary" onclick="copyPrevBudget()">📋 Salin anggaran bulan lalu</button>
 </div>
 
@@ -176,6 +221,13 @@ textarea{min-height:90px;font-family:Arial;resize:vertical}
  <div id="chartWrap"><canvas id="chart" style="width:220px;height:220px"></canvas></div>
  <div id="chartLegend"></div>
 </div>
+
+<h3>📉 Tren 6 Bulan</h3>
+<div class="card">
+ <div class="legend-inline"><span><i style="background:#35bd86"></i>Pemasukan</span><span><i style="background:#ff8585"></i>Pengeluaran</span></div>
+ <canvas id="trend" style="width:100%;height:190px"></canvas>
+ <p class="muted" id="trendNote" style="margin-bottom:0"></p>
+</div>
 </section>
 
 <section>
@@ -193,16 +245,16 @@ textarea{min-height:90px;font-family:Arial;resize:vertical}
 
  <div id="single">
   <label>Rekening</label>
-  <select id="account">
-   <option>BCA</option><option>DANA</option><option>Tunai</option>
-  </select>
+  <select id="account"></select>
  </div>
 
  <div id="transferFields" class="hidden">
   <label>Dari rekening</label>
-  <select id="from"><option>BCA</option><option>DANA</option><option>Tunai</option></select>
+  <select id="from"></select>
   <label>Ke rekening</label>
-  <select id="to"><option>DANA</option><option>BCA</option><option>Tunai</option></select>
+  <select id="to"></select>
+  <label>Biaya admin (opsional)</label>
+  <div class="money-wrap"><span>Rp</span><input id="fee" class="money" type="text" inputmode="numeric" autocomplete="off" placeholder="0"></div>
  </div>
 
  <div id="catWrap">
@@ -239,19 +291,20 @@ textarea{min-height:90px;font-family:Arial;resize:vertical}
  <option value="month">Tampilkan bulan terpilih</option>
  <option value="all">Tampilkan semua bulan</option>
 </select>
+<input id="histSearch" type="search" placeholder="🔍 Cari keterangan, kategori, nominal..." autocomplete="off">
+<div class="btns">
+ <select id="histCategory"></select>
+ <select id="histAccount"></select>
+</div>
+<div class="muted" id="histSummary" style="margin-bottom:6px"></div>
 <div id="history"></div>
 </section>
 
 <section>
 <h3>⚖️ Cocokkan Saldo</h3>
 <div class="card">
- <p class="muted">Isi saldo asli dari m-BCA, DANA, atau dompet tunai. Aplikasi menghitung selisihnya dengan catatan. Kosongkan yang tidak mau dicek.</p>
- <label>Saldo asli BCA (Rp)</label>
- <div class="money-wrap"><span>Rp</span><input id="realBCA" class="money" type="text" inputmode="numeric" autocomplete="off" placeholder="Saldo di m-BCA"></div>
- <label>Saldo asli DANA (Rp)</label>
- <div class="money-wrap"><span>Rp</span><input id="realDANA" class="money" type="text" inputmode="numeric" autocomplete="off" placeholder="Saldo di DANA"></div>
- <label>Saldo asli Tunai (Rp)</label>
- <div class="money-wrap"><span>Rp</span><input id="realTunai" class="money" type="text" inputmode="numeric" autocomplete="off" placeholder="Uang tunai di dompet"></div>
+ <p class="muted">Isi saldo asli dari masing-masing akun yang kamu punya. Kosongkan akun yang tidak mau dicek.</p>
+ <div id="reconcileFields"></div>
  <button onclick="reconcile()">Hitung Selisih</button>
  <div id="reconResult" style="margin-top:12px"></div>
 </div>
@@ -281,10 +334,72 @@ textarea{min-height:90px;font-family:Arial;resize:vertical}
   <select id="pmFrom"></select>
   <label>Ke rekening</label>
   <select id="pmTo"></select>
+  <label>Biaya admin default (opsional)</label>
+  <div class="money-wrap"><span>Rp</span><input id="pmFee" class="money" type="text" inputmode="numeric" autocomplete="off" placeholder="0"></div>
  </div>
  <button onclick="addPreset()">Tambah Preset</button>
  <div id="presetList" style="margin-top:12px"></div>
  <button class="secondary" style="margin-top:10px" onclick="resetPresets()">Kembalikan preset awal</button>
+</div>
+</section>
+
+<section>
+<h3>🔁 Transaksi Berulang</h3>
+<div class="card">
+ <p class="muted">Tagihan atau langganan bulanan dicatat otomatis di tanggal yang kamu pilih, saat aplikasi dibuka.</p>
+ <label>Nama</label>
+ <input id="rcName" placeholder="Contoh: Netflix">
+ <label>Jenis</label>
+ <select id="rcType" onchange="rcChange()">
+  <option value="expense">Pengeluaran</option>
+  <option value="income">Pemasukan</option>
+  <option value="transfer">Transfer</option>
+ </select>
+ <label>Nominal (Rp)</label>
+ <div class="money-wrap"><span>Rp</span><input id="rcAmount" class="money" type="text" inputmode="numeric" autocomplete="off" placeholder="0"></div>
+ <div id="rcCatWrap">
+  <label>Kategori</label>
+  <select id="rcCategory"></select>
+ </div>
+ <div id="rcSingle">
+  <label>Rekening</label>
+  <select id="rcAccount"></select>
+ </div>
+ <div id="rcTransfer" class="hidden">
+  <label>Dari rekening</label>
+  <select id="rcFrom"></select>
+  <label>Ke rekening</label>
+  <select id="rcTo"></select>
+ </div>
+ <label>Tanggal tiap bulan (1-31)</label>
+ <input id="rcDay" type="number" inputmode="numeric" min="1" max="31" placeholder="Contoh: 5">
+ <button onclick="addRecurring()">Tambah Transaksi Berulang</button>
+ <div id="recurringList" style="margin-top:12px"></div>
+</div>
+</section>
+
+</div>
+
+<section>
+<h3>🔒 Keamanan</h3>
+<div class="card">
+ <p class="muted" id="pinStatus"></p>
+ <div class="btns" id="pinBtns"></div>
+ <p class="muted" style="margin-top:12px">PIN 6 angka mengunci tampilan aplikasi, dan otomatis terkunci lagi setelah 30 detik di latar belakang. Ini melindungi dari orang yang meminjam HP-mu, bukan enkripsi data.</p>
+</div>
+</section>
+
+<section>
+<h3>Backup &amp; Restore</h3>
+<div class="card">
+ <p class="muted" id="backupInfo"></p>
+ <p class="muted">Data tersimpan di browser. Kalau cache dihapus atau cara buka aplikasi berubah, data bisa hilang. Backup rutin ya.</p>
+ <div class="btns">
+  <button onclick="backup()">Ekspor JSON</button>
+  <button class="secondary" onclick="copyBackup()">Salin JSON</button>
+ </div>
+ <label style="display:block;margin-top:14px">Impor backup (.json)</label>
+ <input type="file" id="importFile" accept=".json,application/json" onchange="importBackup(event)">
 </div>
 </section>
 
@@ -295,8 +410,12 @@ const KEY="my_money_v2";
 const BUDGET_KEY="my_money_budgets";
 const ALERT_KEY="my_money_alerts";
 const PRESET_KEY="my_money_presets";
-const ACCOUNTS=["BCA","DANA","Tunai"];
-const categories=["Makan","Transportasi","Kos","Belanja","Tagihan","Hiburan","Tabungan","Lain-lain"];
+const ACCOUNT_KEY="my_money_accounts";
+const RECURRING_KEY="my_money_recurring";
+const PIN_KEY="my_money_pin";
+let ACCOUNTS=[];
+let accountTypes={};
+const categories=["Makan","Transportasi","Kos","Belanja","Tagihan","Hiburan","Tabungan","Biaya Admin","Lain-lain"];
 const incomeCats=["Gaji","Bonus","Lain-lain"];
 
 let data={transactions:[]};
@@ -306,6 +425,7 @@ let editingId=null;
 let swReg=null;
 let presets=[];
 let quickId=null;
+let recurring=[];
 
 /* ---------- LOAD / SAVE ---------- */
 function load(){
@@ -319,6 +439,16 @@ function load(){
    data.transactions=old.map(t=>({...t,type:t.type==="income"?"income":"expense"}));
    localStorage.setItem(KEY,JSON.stringify(data));
   }
+  const savedAccounts=JSON.parse(localStorage.getItem(ACCOUNT_KEY)||"null");
+  if(Array.isArray(savedAccounts)&&savedAccounts.length){
+   ACCOUNTS=[...new Set(savedAccounts.map(a=>String(a.name||a).trim()).filter(Boolean))];
+   accountTypes={};
+   savedAccounts.forEach(a=>{if(a&&typeof a==="object")accountTypes[a.name]=a.type||"other";});
+  }
+  (data.transactions||[]).forEach(x=>{
+   [x.account,x.from,x.to].filter(Boolean).forEach(a=>{if(!ACCOUNTS.includes(a))ACCOUNTS.push(a);});
+  });
+  ACCOUNTS.forEach(a=>{if(!accountTypes[a])accountTypes[a]=guessAccountType(a);});
   budgets=JSON.parse(localStorage.getItem(BUDGET_KEY)||"{}");
   if(!budgets||typeof budgets!=="object"||Array.isArray(budgets))budgets={};
   alerts=JSON.parse(localStorage.getItem(ALERT_KEY)||"{}");
@@ -329,6 +459,11 @@ function load(){
    presets=Array.isArray(arr)?arr.map(cleanPreset).filter(Boolean):[];
   }
   if(!presets.length)presets=defaultPresets();
+  const rawR=localStorage.getItem(RECURRING_KEY);
+  if(rawR){
+   const arrR=JSON.parse(rawR);
+   recurring=Array.isArray(arrR)?arrR.map(cleanRecurring).filter(Boolean):[];
+  }
  }catch(e){
   alert("Data tidak bisa dibaca. Jangan hapus penyimpanan browser.");
  }
@@ -343,6 +478,8 @@ function save(){
  localStorage.setItem(BUDGET_KEY,JSON.stringify(budgets));
  saveAlerts();
  localStorage.setItem(PRESET_KEY,JSON.stringify(presets));
+ localStorage.setItem(RECURRING_KEY,JSON.stringify(recurring));
+ localStorage.setItem(ACCOUNT_KEY,JSON.stringify(ACCOUNTS.map(name=>({name,type:accountTypes[name]||"other"}))));
  render();
 }
 
@@ -358,8 +495,12 @@ function esc(s){
   "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
  })[c]);
 }
+let lastId=0;
 function newId(){
- return Date.now()*1000+Math.floor(Math.random()*1000);
+ let id=Date.now()*1000+Math.floor(Math.random()*1000);
+ if(id<=lastId)id=lastId+1;
+ lastId=id;
+ return id;
 }
 function isAdjust(t){
  return t.category==="Penyesuaian";
@@ -392,7 +533,8 @@ document.addEventListener("input",function(e){
 
 function balances(list){
  list=list||data.transactions;
- let b={BCA:0,DANA:0,Tunai:0};
+ let b={};
+ ACCOUNTS.forEach(a=>b[a]=0);
  let inc=0,out=0;
  list.forEach(t=>{
   if(t.type==="income"){
@@ -501,7 +643,7 @@ function checkAlerts(month){
   }else if(pct>=80){
    if(!alerts[k80]){
     alerts[k80]=true;changed=true;
-    notify("⚠️ Hati-hati, bro!",
+    notify("⚠️ Hati-hati!",
      it.name+" sudah "+Math.round(pct)+"%. Sisa anggaran "+money(it.limit-it.used)+".",
      k80,"");
    }
@@ -515,7 +657,7 @@ function updateNotifStatus(msg){
  const el=document.getElementById("notificationStatus");
  if(msg){el.textContent=msg;return;}
  if(!("Notification" in window)){
-  el.textContent="Status: Notifikasi sistem tidak didukung di sini (mis. browser bawaan Acode). Alert tetap muncul sebagai banner di dalam aplikasi. Buka lewat Chrome untuk notifikasi sistem.";
+  el.textContent="Status: Notifikasi sistem tidak didukung di sini. Alert tetap muncul sebagai banner di dalam aplikasi. Buka lewat Chrome untuk notifikasi sistem.";
   return;
  }
  const p=Notification.permission;
@@ -527,7 +669,7 @@ function updateNotifStatus(msg){
 async function enableNotifications(){
  if(!("Notification" in window)){
   updateNotifStatus();
-  showToast("Notifikasi sistem tidak tersedia","Buka aplikasi ini lewat Chrome (Acode → Open in browser). Banner in-app tetap aktif.","");
+  showToast("Notifikasi sistem tidak tersedia","Buka aplikasi ini lewat Chrome. Banner di dalam aplikasi tetap aktif.","");
   return;
  }
  try{
@@ -670,6 +812,7 @@ function changeType(keepCategory){
 
 function add(){
  const type=document.getElementById("type").value;
+ if(needAccounts(type))return;
  const amount=getMoney("amount");
  const date=document.getElementById("date").value;
  const category=type==="transfer"?"Transfer":document.getElementById("category").value;
@@ -697,6 +840,7 @@ function add(){
   data.transactions=data.transactions.map(x=>x.id===editingId?t:x);
  }else{
   data.transactions.push(t);
+  addTransferFee(t,getMoney("fee"));
  }
 
  const wasEditing=!!editingId;
@@ -705,6 +849,7 @@ function add(){
  monthsToCheck.forEach(m=>checkAlerts(m));
 
  document.getElementById("amount").value="";
+ document.getElementById("fee").value="";
  document.getElementById("note").value="";
  showToast(wasEditing?"Transaksi diperbarui":"Transaksi tersimpan",
   money(amount)+(category?" · "+category:""),"ok");
@@ -768,7 +913,6 @@ function remove(id){
 
 /* ---------- RENDER ---------- */
 function render(){
- const {b,inc}=balances();
  const m=monthNow();
 
  let mIn=0,mOut=0,mTr=0,mTrN=0;
@@ -780,11 +924,7 @@ function render(){
   }
  });
 
- document.getElementById("total").textContent=money(b.BCA+b.DANA+b.Tunai);
- document.getElementById("bca").textContent=money(b.BCA);
- document.getElementById("dana").textContent=money(b.DANA);
- document.getElementById("tunai").textContent=money(b.Tunai);
- document.getElementById("income").textContent=money(inc);
+ renderWallets();
  document.getElementById("sumIn").textContent=money(mIn);
  document.getElementById("sumOut").textContent=money(mOut);
  document.getElementById("sumTransfer").textContent=money(mTr)+(mTrN?" · "+mTrN+"x":"");
@@ -794,10 +934,62 @@ function render(){
  renderPresets();
  renderPresetManager();
 
+ renderTrend();
+ renderRecurring();
+ renderHistory();
+}
+
+/* ---------- DOMPET, RIWAYAT, TREN, BERULANG ---------- */
+function renderWallets(){
+ const none=!ACCOUNTS.length;
+ document.getElementById("appBody").classList.toggle("hidden",none);
+ document.getElementById("onboard").classList.toggle("hidden",!none);
+ renderBankChips();
+ if(none){
+  document.getElementById("total").textContent=money(0);
+  document.getElementById("walletGrid").innerHTML='<div class="card muted" style="grid-column:1/-1;margin:0">Belum ada rekening. Tambahkan di bawah.</div>';
+  return;
+ }
+ const r=balances();
+ const b=r.b;
+ let total=0;
+ ACCOUNTS.forEach(a=>{total+=b[a]||0;});
+ document.getElementById("total").textContent=money(total);
+ const icon=a=>accountIcon(accountTypes[a]);
+ document.getElementById("walletGrid").innerHTML=ACCOUNTS.map(a=>
+  `<div class="wallet">${icon(a)} ${esc(a)}<strong class="${(b[a]||0)<0?"red":""}">${money(b[a]||0)}</strong></div>`
+ ).join("")+`<div class="wallet">📈 Total Pemasukan<strong class="green">${money(r.inc)}</strong></div>`;
+}
+
+function histMatches(t,q){
+ if(!q)return true;
+ const kind=t.type==="income"?"pemasukan":t.type==="expense"?"pengeluaran":"transfer";
+ const hay=[t.category,t.note,t.account,t.from,t.to,kind,String(t.amount),money(t.amount),t.date].filter(Boolean).join(" ").toLowerCase();
+ return q.split(/\s+/).every(w=>hay.includes(w));
+}
+
+function renderHistory(){
+ const m=monthNow();
  const showAll=document.getElementById("histFilter").value==="all";
- const list=data.transactions.filter(t=>showAll||String(t.date).startsWith(m));
+ const q=document.getElementById("histSearch").value.trim().toLowerCase();
+ const cat=document.getElementById("histCategory").value;
+ const acc=document.getElementById("histAccount").value;
+ const list=data.transactions.filter(t=>
+  (showAll||String(t.date).startsWith(m))&&
+  (!cat||t.category===cat)&&
+  (!acc||t.account===acc||t.from===acc||t.to===acc)&&
+  histMatches(t,q));
  const sorted=[...list].sort((a,b)=>String(b.date).localeCompare(String(a.date))||b.id-a.id);
  document.getElementById("count").textContent=sorted.length+" transaksi";
+
+ let sIn=0,sOut=0;
+ sorted.forEach(t=>{
+  if(isAdjust(t))return;
+  if(t.type==="income")sIn+=t.amount;
+  else if(t.type==="expense")sOut+=t.amount;
+ });
+ document.getElementById("histSummary").textContent=(q||cat||acc)?
+  "Hasil filter: masuk "+money(sIn)+" · keluar "+money(sOut):"";
 
  document.getElementById("history").innerHTML=sorted.map(t=>{
   const label=t.type==="transfer"?"Transfer "+t.from+" → "+t.to:
@@ -813,23 +1005,242 @@ function render(){
    ${isAdjust(t)?"":`<button class="edit" onclick="repeatTx(${Number(t.id)})">Ulangi</button>`}<button class="edit" onclick="startEdit(${Number(t.id)})">Edit</button><button class="delete" onclick="remove(${Number(t.id)})">Hapus</button>
    </div></div>
   </div>`;
- }).join("")||'<div class="card muted">Belum ada transaksi.</div>';
+ }).join("")||'<div class="card muted">Tidak ada transaksi yang cocok.</div>';
 }
+
+function fillFilterSelects(){
+ const cats=[...new Set([...categories,...incomeCats,"Transfer","Penyesuaian"])];
+ const cs=document.getElementById("histCategory");
+ const as=document.getElementById("histAccount");
+ const cv=cs.value,av=as.value;
+ cs.innerHTML='<option value="">Semua kategori</option>'+cats.map(c=>"<option>"+esc(c)+"</option>").join("");
+ as.innerHTML='<option value="">Semua rekening</option>'+ACCOUNTS.map(a=>"<option>"+esc(a)+"</option>").join("");
+ if(cats.includes(cv))cs.value=cv;
+ if(ACCOUNTS.includes(av))as.value=av;
+}
+
+/* ---------- TREN 6 BULAN ---------- */
+const MONTH_SHORT=["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+
+function monthsBack(m,n){
+ const parts=m.split("-").map(Number);
+ const out=[];
+ for(let i=n-1;i>=0;i--){
+  const d=new Date(parts[0],parts[1]-1-i,1);
+  out.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"));
+ }
+ return out;
+}
+
+function renderTrend(){
+ const m=monthNow();
+ if(!m)return;
+ const months=monthsBack(m,6);
+ const inc={},out={};
+ months.forEach(x=>{inc[x]=0;out[x]=0;});
+ data.transactions.forEach(t=>{
+  if(isAdjust(t))return;
+  const k=String(t.date).slice(0,7);
+  if(!(k in inc))return;
+  if(t.type==="income")inc[k]+=t.amount;
+  else if(t.type==="expense")out[k]+=t.amount;
+ });
+
+ const cv=document.getElementById("trend");
+ const W=Math.max(240,cv.clientWidth||300),H=190,dpr=window.devicePixelRatio||1;
+ cv.width=W*dpr;cv.height=H*dpr;
+ const ctx=cv.getContext("2d");
+ ctx.setTransform(dpr,0,0,dpr,0,0);
+ ctx.clearRect(0,0,W,H);
+
+ const maxV=Math.max(1,...months.map(x=>Math.max(inc[x],out[x])));
+ const padL=6,padB=26,padT=10,chartH=H-padB-padT;
+ const groupW=(W-padL*2)/months.length;
+ const barW=Math.min(18,groupW/2-4);
+
+ ctx.strokeStyle="#34465a";ctx.lineWidth=1;
+ ctx.beginPath();ctx.moveTo(padL,H-padB+.5);ctx.lineTo(W-padL,H-padB+.5);ctx.stroke();
+
+ months.forEach((x,i)=>{
+  const cx=padL+groupW*i+groupW/2;
+  const hIn=inc[x]/maxV*chartH,hOut=out[x]/maxV*chartH;
+  ctx.fillStyle="#35bd86";ctx.fillRect(cx-barW-1,H-padB-hIn,barW,hIn);
+  ctx.fillStyle="#ff8585";ctx.fillRect(cx+1,H-padB-hOut,barW,hOut);
+  ctx.fillStyle=x===m?"#ffffff":"#9aabba";
+  ctx.font=(x===m?"bold ":"")+"11px Arial";
+  ctx.textAlign="center";ctx.textBaseline="top";
+  ctx.fillText(MONTH_SHORT[Number(x.slice(5))-1],cx,H-padB+7);
+ });
+
+ const avg=months.reduce((s,x)=>s+out[x],0)/months.length;
+ const prev=out[months[4]];
+ let note="Rata-rata pengeluaran 6 bulan: "+money(avg)+"/bulan.";
+ if(prev>0){
+  const diff=Math.round((out[m]-prev)/prev*100);
+  note+=" Bulan ini "+money(out[m])+", "+(diff>=0?"naik ":"turun ")+Math.abs(diff)+"% dari bulan lalu.";
+ }else{
+  note+=" Bulan ini "+money(out[m])+".";
+ }
+ document.getElementById("trendNote").textContent=note;
+}
+
+/* ---------- BIAYA ADMIN TRANSFER ---------- */
+function addTransferFee(t,fee){
+ if(!t||t.type!=="transfer"||!Number.isSafeInteger(fee)||fee<=0)return;
+ data.transactions.push({
+  id:newId(),type:"expense",amount:fee,date:t.date,category:"Biaya Admin",
+  note:"Biaya admin "+t.from+" → "+t.to,account:t.from
+ });
+}
+
+/* ---------- TRANSAKSI BERULANG ---------- */
+function cleanRecurring(r){
+ if(!r||typeof r!=="object")return null;
+ const name=String(r.name||"").trim().slice(0,30);
+ if(!name)return null;
+ if(!["income","expense","transfer"].includes(r.type))return null;
+ const amount=Number(r.amount);
+ if(!Number.isSafeInteger(amount)||amount<=0)return null;
+ const day=Number(r.day);
+ if(!Number.isInteger(day)||day<1||day>31)return null;
+ const out={id:Number.isFinite(Number(r.id))?Number(r.id):newId(),name,type:r.type,amount,day,
+  lastMonth:/^\d{4}-\d{2}$/.test(String(r.lastMonth||""))?r.lastMonth:""};
+ if(r.type==="transfer"){
+  if(!ACCOUNTS.includes(r.from)||!ACCOUNTS.includes(r.to)||r.from===r.to)return null;
+  out.from=r.from;out.to=r.to;
+ }else{
+  if(!ACCOUNTS.includes(r.account))return null;
+  out.account=r.account;
+  out.category=String(r.category||"Lain-lain");
+ }
+ return out;
+}
+
+function nextMonthKey(k){
+ const p=k.split("-").map(Number);
+ const d=new Date(p[0],p[1],1);
+ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+}
+
+function rcChange(){
+ const type=document.getElementById("rcType").value;
+ const tr=type==="transfer";
+ document.getElementById("rcCatWrap").classList.toggle("hidden",tr);
+ document.getElementById("rcSingle").classList.toggle("hidden",tr);
+ document.getElementById("rcTransfer").classList.toggle("hidden",!tr);
+ const list=type==="income"?incomeCats:categories;
+ document.getElementById("rcCategory").innerHTML=list.map(c=>"<option>"+esc(c)+"</option>").join("");
+}
+
+function addRecurring(){
+ const name=document.getElementById("rcName").value.trim();
+ const type=document.getElementById("rcType").value;
+ if(needAccounts(type))return;
+ const amount=getMoney("rcAmount");
+ const day=Number(document.getElementById("rcDay").value);
+ if(!name){alert("Isi nama dulu.");return;}
+ if(!Number.isSafeInteger(amount)||amount<=0){alert("Isi nominal dengan benar.");return;}
+ if(!Number.isInteger(day)||day<1||day>31){alert("Tanggal harus 1 sampai 31.");return;}
+
+ const r={id:newId(),name,type,amount,day,lastMonth:""};
+ if(type==="transfer"){
+  r.from=document.getElementById("rcFrom").value;
+  r.to=document.getElementById("rcTo").value;
+ }else{
+  r.account=document.getElementById("rcAccount").value;
+  r.category=document.getElementById("rcCategory").value;
+ }
+ const clean=cleanRecurring(r);
+ if(!clean){alert("Data tidak valid (rekening asal dan tujuan harus beda).");return;}
+
+ const t0=today();
+ const curKey=t0.slice(0,7);
+ const parts=curKey.split("-").map(Number);
+ const dim=new Date(parts[0],parts[1],0).getDate();
+ const due=curKey+"-"+String(Math.min(clean.day,dim)).padStart(2,"0");
+ const prevKey=new Date(parts[0],parts[1]-2,1);
+ clean.lastMonth=due>=t0?(prevKey.getFullYear()+"-"+String(prevKey.getMonth()+1).padStart(2,"0")):curKey;
+
+ recurring.push(clean);
+ document.getElementById("rcName").value="";
+ document.getElementById("rcAmount").value="";
+ document.getElementById("rcDay").value="";
+ save();
+ runRecurring();
+ showToast("Transaksi berulang ditambahkan",clean.name+" · tiap tanggal "+clean.day,"ok");
+}
+
+function removeRecurring(id){
+ const r=recurring.find(x=>x.id===id);
+ if(!r||!confirm("Hapus \""+r.name+"\"? Transaksi yang sudah tercatat tidak ikut terhapus."))return;
+ recurring=recurring.filter(x=>x.id!==id);
+ save();
+}
+
+function renderRecurring(){
+ const el=document.getElementById("recurringList");
+ if(!el)return;
+ el.innerHTML=recurring.map(r=>{
+  const detail=r.type==="transfer"?"Transfer "+r.from+" → "+r.to:typeLabel(r.type)+" · "+r.category+" · "+r.account;
+  return `<div class="preset-row">
+   <div><b>${esc(r.name)}</b> · ${money(r.amount)}<br><span class="muted">Tiap tanggal ${r.day} · ${esc(detail)}</span></div>
+   <button class="delete" onclick="removeRecurring(${Number(r.id)})">Hapus</button>
+  </div>`;
+ }).join("")||'<div class="muted">Belum ada transaksi berulang.</div>';
+}
+
+function runRecurring(){
+ if(!recurring.length)return 0;
+ const todayStr=today();
+ const curKey=todayStr.slice(0,7);
+ let created=0;
+ const months=new Set();
+ recurring.forEach(r=>{
+  let k=r.lastMonth?nextMonthKey(r.lastMonth):curKey;
+  let guard=0;
+  while(k<=curKey&&guard<60){
+   const p=k.split("-").map(Number);
+   const dim=new Date(p[0],p[1],0).getDate();
+   const date=k+"-"+String(Math.min(r.day,dim)).padStart(2,"0");
+   if(date>todayStr)break;
+   const t={id:newId(),type:r.type,amount:r.amount,date:date,
+    category:r.type==="transfer"?"Transfer":r.category,
+    note:r.name+" (otomatis)",rid:r.id};
+   if(r.type==="transfer"){t.from=r.from;t.to=r.to;}else{t.account=r.account;}
+   data.transactions.push(t);
+   created++;
+   months.add(k);
+   r.lastMonth=k;
+   k=nextMonthKey(k);
+   guard++;
+  }
+ });
+ if(created){
+  save();
+  months.forEach(function(k){checkAlerts(k);});
+  showToast("Transaksi berulang",created+" transaksi dicatat otomatis.","ok");
+ }
+ return created;
+}
+
+document.addEventListener("visibilitychange",function(){
+ if(!document.hidden)runRecurring();
+});
 
 /* ---------- PRESET / INPUT CEPAT ---------- */
 function defaultPresets(){
- return [
-  {id:1,name:"Makan",type:"expense",category:"Makan",account:"Tunai"},
-  {id:2,name:"Transport",type:"expense",category:"Transportasi",account:"DANA"},
-  {id:3,name:"Belanja",type:"expense",category:"Belanja",account:"DANA"},
-  {id:4,name:"Tagihan",type:"expense",category:"Tagihan",account:"BCA"},
-  {id:5,name:"Hiburan",type:"expense",category:"Hiburan",account:"DANA"},
-  {id:6,name:"Tabungan",type:"expense",category:"Tabungan",account:"BCA"},
-  {id:7,name:"Lain-lain",type:"expense",category:"Lain-lain",account:"Tunai"},
-  {id:8,name:"Gaji",type:"income",category:"Gaji",account:"BCA"},
-  {id:9,name:"Top up DANA",type:"transfer",from:"BCA",to:"DANA"},
-  {id:10,name:"Tarik tunai",type:"transfer",from:"BCA",to:"Tunai"}
+ const list=[
+  {id:1,name:"Makan",type:"expense",category:"Makan",account:""},
+  {id:2,name:"Transport",type:"expense",category:"Transportasi",account:""},
+  {id:3,name:"Belanja",type:"expense",category:"Belanja",account:""},
+  {id:4,name:"Tagihan",type:"expense",category:"Tagihan",account:""},
+  {id:5,name:"Hiburan",type:"expense",category:"Hiburan",account:""},
+  {id:6,name:"Tabungan",type:"expense",category:"Tabungan",account:""},
+  {id:7,name:"Lain-lain",type:"expense",category:"Lain-lain",account:""},
+  {id:8,name:"Gaji",type:"income",category:"Gaji",account:""}
  ];
+ if(ACCOUNTS.length>1)list.push({id:9,name:"Pindah saldo",type:"transfer",from:ACCOUNTS[0],to:ACCOUNTS[1]});
+ return list;
 }
 
 function cleanPreset(p){
@@ -842,15 +1253,17 @@ function cleanPreset(p){
  if(p.type==="transfer"){
   if(!ACCOUNTS.includes(p.from)||!ACCOUNTS.includes(p.to)||p.from===p.to)return null;
   r.from=p.from;r.to=p.to;
+  const feeP=Number(p.fee);
+  if(Number.isSafeInteger(feeP)&&feeP>0)r.fee=feeP;
  }else{
-  if(!ACCOUNTS.includes(p.account))return null;
-  r.account=p.account;
+  if(p.account&&!ACCOUNTS.includes(p.account))return null;
+  r.account=p.account||"";
   r.category=String(p.category||(p.type==="income"?"Lain-lain":"Lain-lain"));
  }
  return r;
 }
 
-const ICONS={"Makan":"🍽️","Transportasi":"🚌","Kos":"🏠","Belanja":"🛒","Tagihan":"🧾","Hiburan":"🎮","Tabungan":"🐷","Lain-lain":"📦","Gaji":"💼","Bonus":"🎁"};
+const ICONS={"Makan":"🍽️","Transportasi":"🚌","Kos":"🏠","Belanja":"🛒","Tagihan":"🧾","Hiburan":"🎮","Tabungan":"🐷","Lain-lain":"📦","Gaji":"💼","Bonus":"🎁","Biaya Admin":"🏷️"};
 function presetIcon(p){
  if(p.type==="transfer")return "🔁";
  return ICONS[p.category]||(p.type==="income"?"💰":"💸");
@@ -860,14 +1273,21 @@ function typeLabel(t){
 }
 
 function fillAccountSelects(){
- const opts=ACCOUNTS.map(a=>"<option>"+a+"</option>").join("");
- ["qAccount","qFrom","qTo","pmAccount","pmFrom","pmTo"].forEach(id=>{
+ const opts=ACCOUNTS.map(a=>"<option>"+esc(a)+"</option>").join("");
+ ["account","from","to","qAccount","qFrom","qTo","pmAccount","pmFrom","pmTo","rcAccount","rcFrom","rcTo"].forEach(id=>{
   document.getElementById(id).innerHTML=opts;
  });
- document.getElementById("qFrom").value="BCA";
- document.getElementById("qTo").value="DANA";
- document.getElementById("pmFrom").value="BCA";
- document.getElementById("pmTo").value="DANA";
+ if(ACCOUNTS.length){
+  ["account","qAccount","pmAccount","rcAccount","from","qFrom","pmFrom","rcFrom"].forEach(id=>document.getElementById(id).value=ACCOUNTS[0]);
+ }
+ if(ACCOUNTS.length>1){
+  ["to","qTo","pmTo","rcTo"].forEach(id=>document.getElementById(id).value=ACCOUNTS[1]);
+ }
+ document.getElementById("pmAccount").innerHTML='<option value="">Otomatis (rekening terakhir)</option>'+opts;
+ document.getElementById("pmAccount").value="";
+ fillFilterSelects();
+ renderAccountManager();
+ renderReconcileFields();
 }
 
 function renderPresets(){
@@ -889,9 +1309,10 @@ function openQuick(id){
   document.getElementById("qFrom").value=p.from;
   document.getElementById("qTo").value=p.to;
  }else{
-  document.getElementById("qAccount").value=p.account;
+  document.getElementById("qAccount").value=(p.account&&ACCOUNTS.includes(p.account))?p.account:ACCOUNTS[0];
  }
  document.getElementById("qAmount").value="";
+ setMoney("qFee",p.fee||"");
  document.getElementById("qNote").value="";
  document.getElementById("qDate").value=today();
  renderSuggest(p);
@@ -939,6 +1360,7 @@ function closeQuick(){
 function saveQuick(){
  const p=presets.find(x=>x.id===quickId);
  if(!p)return;
+ if(needAccounts(p.type))return;
  const amount=getMoney("qAmount");
  const date=document.getElementById("qDate").value;
  const note=document.getElementById("qNote").value.trim();
@@ -961,6 +1383,8 @@ function saveQuick(){
  }
 
  data.transactions.push(t);
+ if(p.type==="transfer")addTransferFee(t,getMoney("qFee"));
+ else p.account=t.account;
  closeQuick();
  save();
  checkAlerts(date.slice(0,7));
@@ -986,6 +1410,7 @@ function addPreset(){
  if(type==="transfer"){
   p.from=document.getElementById("pmFrom").value;
   p.to=document.getElementById("pmTo").value;
+  p.fee=getMoney("pmFee");
  }else{
   p.account=document.getElementById("pmAccount").value;
   p.category=document.getElementById("pmCategory").value;
@@ -1015,7 +1440,7 @@ function resetPresets(){
 
 function renderPresetManager(){
  document.getElementById("presetList").innerHTML=presets.map(p=>{
-  const detail=p.type==="transfer"?"Transfer "+p.from+" → "+p.to:typeLabel(p.type)+" · "+p.category+" · "+p.account;
+  const detail=p.type==="transfer"?"Transfer "+p.from+" → "+p.to+(p.fee?" · admin "+money(p.fee):""):typeLabel(p.type)+" · "+p.category+" · "+(p.account||"rekening terakhir dipakai");
   return `<div class="preset-row">
    <div><b>${presetIcon(p)} ${esc(p.name)}</b><br><span class="muted">${esc(detail)}</span></div>
    <button class="delete" onclick="removePreset(${Number(p.id)})">Hapus</button>
@@ -1023,34 +1448,173 @@ function renderPresetManager(){
  }).join("")||'<div class="muted">Belum ada preset.</div>';
 }
 
+/* ---------- KELOLA REKENING / DOMPET ---------- */
+const BANK_CHIPS=[
+ ["BCA","bank"],["BRI","bank"],["BNI","bank"],["Mandiri","bank"],["BSI","bank"],["CIMB Niaga","bank"],
+ ["Permata","bank"],["Jago","bank"],["SeaBank","bank"],["Jenius","bank"],
+ ["DANA","ewallet"],["GoPay","ewallet"],["OVO","ewallet"],["ShopeePay","ewallet"],["LinkAja","ewallet"],
+ ["Tunai","cash"]
+];
+
+function guessAccountType(name){
+ const n=String(name).toLowerCase();
+ const hit=BANK_CHIPS.find(b=>b[0].toLowerCase()===n);
+ return hit?hit[1]:"other";
+}
+
+function accountIcon(type){
+ return type==="bank"?"🏦":type==="ewallet"?"💳":type==="cash"?"💵":"👛";
+}
+
+function addAccountNamed(raw,type){
+ const name=String(raw).trim().replace(/\s+/g," ").slice(0,24);
+ if(!name){alert("Isi nama akun dulu.");return false;}
+ if(ACCOUNTS.some(a=>a.toLowerCase()===name.toLowerCase())){
+  alert("Nama akun itu sudah ada.");return false;
+ }
+ ACCOUNTS.push(name);
+ accountTypes[name]=type||"other";
+ if(ACCOUNTS.length===2&&!presets.some(p=>p.type==="transfer")){
+  presets.push({id:newId(),name:"Pindah saldo",type:"transfer",from:ACCOUNTS[0],to:ACCOUNTS[1]});
+ }
+ fillAccountSelects();
+ save();
+ showToast("Akun ditambahkan",name+" siap digunakan.","ok");
+ return true;
+}
+
+function addAccount(){
+ const input=document.getElementById("newAccountName");
+ const type=document.getElementById("newAccountType").value;
+ if(addAccountNamed(input.value,type))input.value="";
+}
+
+function addQuickAccount(i){
+ const b=BANK_CHIPS[i];
+ if(b)addAccountNamed(b[0],b[1]);
+}
+
+function renderBankChips(){
+ const html=BANK_CHIPS.map((b,i)=>
+  ACCOUNTS.some(a=>a.toLowerCase()===b[0].toLowerCase())?"":
+  `<button class="chip" onclick="addQuickAccount(${i})">${accountIcon(b[1])} ${esc(b[0])}</button>`
+ ).join("");
+ document.getElementById("quickBanks").innerHTML=html||'<span class="muted">Semua pilihan cepat sudah ditambahkan.</span>';
+ document.getElementById("onboardBanks").innerHTML=html;
+}
+
+function needAccounts(type){
+ if(!ACCOUNTS.length){
+  alert("Tambahkan rekening atau dompet dulu di bagian Dompet Saya.");return true;
+ }
+ if(type==="transfer"&&ACCOUNTS.length<2){
+  alert("Transfer butuh minimal 2 rekening.");return true;
+ }
+ return false;
+}
+
+function renameAccountAt(index){
+ const oldName=ACCOUNTS[index];
+ if(!oldName)return;
+ const next=prompt("Ubah nama akun:",oldName);
+ if(next===null)return;
+ const name=next.trim().replace(/\s+/g," ").slice(0,24);
+ if(!name){alert("Nama akun tidak boleh kosong.");return;}
+ if(ACCOUNTS.some((a,i)=>i!==index&&a.toLowerCase()===name.toLowerCase())){
+  alert("Nama akun itu sudah ada.");return;
+ }
+ if(name===oldName)return;
+ ACCOUNTS[index]=name;
+ accountTypes[name]=accountTypes[oldName]||"other";
+ delete accountTypes[oldName];
+ data.transactions.forEach(tx=>{
+  if(tx.account===oldName)tx.account=name;
+  if(tx.from===oldName)tx.from=name;
+  if(tx.to===oldName)tx.to=name;
+ });
+ presets.forEach(p=>{
+  if(p.account===oldName)p.account=name;
+  if(p.from===oldName)p.from=name;
+  if(p.to===oldName)p.to=name;
+ });
+ recurring.forEach(r=>{
+  if(r.account===oldName)r.account=name;
+  if(r.from===oldName)r.from=name;
+  if(r.to===oldName)r.to=name;
+ });
+ fillAccountSelects();
+ save();
+ showToast("Nama akun diperbarui",oldName+" → "+name,"ok");
+}
+function removeAccountAt(index){
+ const name=ACCOUNTS[index];
+ if(!name)return;
+ if(ACCOUNTS.length<=1){alert("Minimal harus ada satu akun.");return;}
+ const used=data.transactions.some(t=>t.account===name||t.from===name||t.to===name);
+ const usedPreset=presets.some(p=>p.from===name||p.to===name)||recurring.some(r=>r.account===name||r.from===name||r.to===name);
+ if(used){
+  alert("Akun ini masih dipakai riwayat transaksi. Pindahkan atau hapus transaksi terkait dulu agar saldo dan riwayat tetap benar.");
+  return;
+ }
+ if(!confirm("Hapus akun "+name+"?"+(usedPreset?" Preset transfer dan transaksi berulang yang memakai akun ini juga akan dihapus.":"")))return;
+ presets=presets.filter(p=>p.from!==name&&p.to!==name);
+ presets.forEach(p=>{if(p.account===name)p.account="";});
+ recurring=recurring.filter(r=>r.account!==name&&r.from!==name&&r.to!==name);
+ ACCOUNTS=ACCOUNTS.filter(a=>a!==name);
+ delete accountTypes[name];
+ fillAccountSelects();
+ save();
+}
+function renderAccountManager(){
+ const el=document.getElementById("accountList");
+ if(!el)return;
+ el.innerHTML=ACCOUNTS.map(a=>`<div class="preset-row">
+  <div><b>${(accountTypes[a]==="bank"?"🏦":accountTypes[a]==="ewallet"?"💳":accountTypes[a]==="cash"?"💵":"👛")} ${esc(a)}</b><br><span class="muted">${accountTypes[a]==="bank"?"Bank":accountTypes[a]==="ewallet"?"E-wallet":accountTypes[a]==="cash"?"Tunai":"Lainnya"}</span></div>
+  <div style="display:flex;gap:5px"><button class="edit" onclick="renameAccountAt(${ACCOUNTS.indexOf(a)})">Ubah</button><button class="delete" style="width:auto" onclick="removeAccountAt(${ACCOUNTS.indexOf(a)})">Hapus</button></div>
+ </div>`).join("");
+}
+
 /* ---------- COCOKKAN SALDO ---------- */
+function renderReconcileFields(){
+ const el=document.getElementById("reconcileFields");
+ if(!el)return;
+ el.innerHTML=ACCOUNTS.map((a,i)=>`<label>Saldo asli ${esc(a)} (Rp)</label>
+  <div class="money-wrap"><span>Rp</span><input id="realBalance${i}" class="money" type="text" inputmode="numeric" autocomplete="off" placeholder="Saldo ${esc(a)}"></div>`).join("");
+}
+
 function reconcile(){
  const b=balances().b;
  let html="";
- ACCOUNTS.forEach(a=>{
-  const raw=document.getElementById("real"+a).value.trim();
+ ACCOUNTS.forEach((a,i)=>{
+  const input=document.getElementById("realBalance"+i);
+  const raw=input?input.value.trim():"";
   if(raw==="")return;
   const real=parseMoney(raw);
   if(!Number.isFinite(real))return;
   const noted=Math.round(b[a]||0);
   const diff=Math.round(real-noted);
   if(diff===0){
-   html+=`<div class="budget-item"><div class="row"><strong>${a}</strong><strong class="green">Cocok ✓</strong></div>
+   html+=`<div class="budget-item"><div class="row"><strong>${esc(a)}</strong><strong class="green">Cocok ✓</strong></div>
     <small class="muted">Catatan dan saldo asli sama: ${money(noted)}</small></div>`;
   }else{
    const less=diff<0;
    html+=`<div class="budget-item">
-    <div class="row"><strong>${a}</strong>
+    <div class="row"><strong>${esc(a)}</strong>
      <strong class="${less?"red":"orange"}">${less?"Kurang":"Lebih"} ${money(Math.abs(diff))}</strong></div>
     <small class="muted">Catatan ${money(noted)} · Asli ${money(real)}</small>
     <small class="muted">${less?"Ada pengeluaran yang belum tercatat?":"Ada pemasukan yang belum tercatat?"} Kalau tahu penyebabnya, catat manual dengan kategori yang tepat.</small>
-    <button class="secondary" style="margin-top:10px" onclick="reconcileAdjust('${a}',${diff})">Catat sebagai penyesuaian</button>
+    <button class="secondary" style="margin-top:10px" onclick="reconcileAdjustAt(${i},${diff})">Catat sebagai penyesuaian</button>
    </div>`;
   }
  });
  document.getElementById("reconResult").innerHTML=html||'<p class="muted">Isi minimal satu saldo asli.</p>';
 }
 
+function reconcileAdjustAt(index,diff){
+ const acc=ACCOUNTS[index];
+ if(!acc)return;
+ reconcileAdjust(acc,diff);
+}
 function reconcileAdjust(acc,diff){
  if(!ACCOUNTS.includes(acc)||!Number.isSafeInteger(diff)||diff===0)return;
  if(!confirm("Catat penyesuaian "+acc+" sebesar "+money(Math.abs(diff))+(diff<0?" (mengurangi)":" (menambah)")+"?\nPenyesuaian tidak dihitung di anggaran maupun chart."))return;
@@ -1166,20 +1730,355 @@ function copyPrevBudget(){
  showToast("Anggaran disalin","Dari bulan "+prev+" ke "+m+".","ok");
 }
 
+/* ---------- BACKUP & RESTORE ---------- */
+const BACKUP_KEY="my_money_last_backup";
+
+function markBackup(){
+ localStorage.setItem(BACKUP_KEY,String(Date.now()));
+ updateBackupInfo();
+}
+
+function updateBackupInfo(){
+ const el=document.getElementById("backupInfo");
+ const last=Number(localStorage.getItem(BACKUP_KEY)||0);
+ if(!last){el.textContent="Backup terakhir: belum pernah.";return;}
+ const days=Math.floor((Date.now()-last)/86400000);
+ el.textContent="Backup terakhir: "+new Date(last).toLocaleDateString("id-ID")+
+  (days>0?" ("+days+" hari lalu)":" (hari ini)");
+}
+
+function backupReminder(){
+ if(!data.transactions.length)return;
+ const last=Number(localStorage.getItem(BACKUP_KEY)||0);
+ const days=last?Math.floor((Date.now()-last)/86400000):null;
+ if(days===null||days>=7){
+  showToast("💾 Waktunya backup",
+   days===null?"Data kamu belum pernah di-backup. Ekspor JSON sekarang biar aman.":
+   "Sudah "+days+" hari sejak backup terakhir. Ekspor JSON biar aman.","");
+ }
+}
+function backupContent(){
+ return {app:"MY MONEY",version:"1.3",accounts:ACCOUNTS.map(name=>({name,type:accountTypes[name]||"other"})),data,budgets,alerts,presets,recurring};
+}
+
+function backup(){
+ const blob=new Blob([JSON.stringify(backupContent(),null,2)],{type:"application/json"});
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement("a");
+ a.href=url;
+ a.download="my-money-backup.json";
+ document.body.appendChild(a);
+ a.click();
+ a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+ markBackup();
+}
+
+async function copyBackup(){
+ const text=JSON.stringify(backupContent());
+ try{
+  await navigator.clipboard.writeText(text);
+  markBackup();
+  showToast("Backup disalin","Tempel ke catatan/WA-mu sendiri untuk disimpan.","ok");
+ }catch(e){
+  prompt("Salin teks backup ini:",text);
+ }
+}
+
+function cleanTransaction(t){
+ if(!t||typeof t!=="object")return null;
+ const amount=Number(t.amount);
+ if(!["income","expense","transfer"].includes(t.type))return null;
+ if(!Number.isSafeInteger(amount)||amount<=0)return null;
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(String(t.date)))return null;
+ const r={
+  id:Number.isFinite(Number(t.id))?Number(t.id):newId(),
+  type:t.type,amount,date:t.date,
+  category:String(t.category||""),
+  note:String(t.note||"")
+ };
+ if(t.type==="transfer"){
+  if(!ACCOUNTS.includes(t.from)||!ACCOUNTS.includes(t.to))return null;
+  r.from=t.from;r.to=t.to;
+ }else{
+  if(!ACCOUNTS.includes(t.account))return null;
+  r.account=t.account;
+ }
+ return r;
+}
+
+function importBackup(ev){
+ const file=ev.target.files[0];
+ if(!file)return;
+ const reader=new FileReader();
+ reader.onload=()=>{
+  try{
+   const c=JSON.parse(reader.result);
+   const txs=(c.data&&c.data.transactions)||c.transactions;
+   if(!Array.isArray(txs))throw new Error("Format backup tidak dikenali.");
+   if(Array.isArray(c.accounts)&&c.accounts.length){
+    ACCOUNTS=[...new Set(c.accounts.map(a=>String(a.name||a).trim()).filter(Boolean))];
+    accountTypes={};
+    c.accounts.forEach(a=>{if(a&&typeof a==="object")accountTypes[a.name]=a.type||"other";});
+   }else{
+    // Backup versi lama: ambil nama akun dari transaksi supaya data tetap bisa dipulihkan.
+    ACCOUNTS=[];
+    accountTypes={};
+    txs.forEach(x=>[x.account,x.from,x.to].filter(Boolean).forEach(a=>{if(!ACCOUNTS.includes(a))ACCOUNTS.push(a);}));
+   }
+   ACCOUNTS.forEach(a=>{if(!accountTypes[a])accountTypes[a]=guessAccountType(a);});
+   const clean=txs.map(cleanTransaction).filter(Boolean);
+   const skipped=txs.length-clean.length;
+   if(!confirm("Impor "+clean.length+" transaksi"+(skipped?" ("+skipped+" dilewati karena tidak valid)":"")+
+     "?\nData yang ada sekarang akan DIGANTI."))return;
+   data={transactions:clean};
+   const b=c.budgets;
+   budgets=(b&&typeof b==="object"&&!Array.isArray(b))?b:{};
+   const a=c.alerts;
+   alerts=(a&&typeof a==="object"&&!Array.isArray(a))?a:{};
+   if(Array.isArray(c.presets)){
+    const pr=c.presets.map(cleanPreset).filter(Boolean);
+    presets=pr.length?pr:defaultPresets();
+   }
+   recurring=Array.isArray(c.recurring)?c.recurring.map(cleanRecurring).filter(Boolean):[];
+   fillAccountSelects();
+   save();
+   showToast("Impor berhasil",clean.length+" transaksi dipulihkan.","ok");
+  }catch(e){
+   alert("Gagal impor: "+e.message);
+  }
+  ev.target.value="";
+ };
+ reader.readAsText(file);
+}
+
+/* ---------- PIN / KUNCI APLIKASI ---------- */
+const PIN_LEN=6;
+let pin={mode:null,buf:"",tmp:"",fails:0,until:0,onDone:null,busy:false};
+let hiddenAt=0;
+
+function hasPin(){
+ return !!localStorage.getItem(PIN_KEY);
+}
+
+function randomSalt(){
+ try{
+  const a=new Uint8Array(12);
+  globalThis.crypto.getRandomValues(a);
+  return Array.from(a).map(b=>b.toString(16).padStart(2,"0")).join("");
+ }catch(e){
+  return String(Math.random()).slice(2)+String(Date.now());
+ }
+}
+
+async function hashPin(p,salt){
+ const txt=salt+":"+p;
+ try{
+  const c=globalThis.crypto;
+  if(c&&c.subtle){
+   const buf=await c.subtle.digest("SHA-256",new TextEncoder().encode(txt));
+   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+  }
+ }catch(e){}
+ let h1=0xdeadbeef,h2=0x41c6ce57;
+ for(let i=0;i<txt.length;i++){
+  const ch=txt.charCodeAt(i);
+  h1=Math.imul(h1^ch,2654435761);
+  h2=Math.imul(h2^ch,1597334677);
+ }
+ h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);
+ h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);
+ return "f"+(4294967296*(2097151&h2)+(h1>>>0)).toString(16);
+}
+
+async function verifyPin(p){
+ let rec=null;
+ try{rec=JSON.parse(localStorage.getItem(PIN_KEY)||"null");}catch(e){}
+ if(!rec||!rec.salt||!rec.hash)return false;
+ return (await hashPin(p,rec.salt))===rec.hash;
+}
+
+async function savePin(p){
+ const salt=randomSalt();
+ localStorage.setItem(PIN_KEY,JSON.stringify({salt:salt,hash:await hashPin(p,salt)}));
+}
+
+function buildPad(){
+ const keys=["1","2","3","4","5","6","7","8","9","","0","del"];
+ document.getElementById("lockPad").innerHTML=keys.map(k=>
+  k===""?"<span></span>":
+  `<button class="key" onclick="pressKey('${k}')">${k==="del"?"⌫":k}</button>`
+ ).join("");
+}
+
+function renderDots(){
+ let h="";
+ for(let i=0;i<PIN_LEN;i++)h+='<span class="pdot'+(i<pin.buf.length?" on":"")+'"></span>';
+ document.getElementById("lockDots").innerHTML=h;
+}
+
+function setLockMsg(m){
+ document.getElementById("lockMsg").textContent=m||"";
+}
+
+function openLock(mode,opts){
+ opts=opts||{};
+ pin.mode=mode;
+ pin.buf="";
+ pin.onDone=opts.onDone||null;
+ if(mode==="set1")pin.tmp="";
+ const titles={
+  unlock:["Masukkan PIN","Buka MY MONEY"],
+  verify:["Masukkan PIN","Konfirmasi dulu"],
+  set1:["Buat PIN baru","6 angka"],
+  set2:["Ulangi PIN","Masukkan sekali lagi"]
+ };
+ document.getElementById("lockTitle").textContent=titles[mode][0];
+ document.getElementById("lockSub").textContent=titles[mode][1];
+ document.getElementById("lockCancel").classList.toggle("hidden",mode==="unlock");
+ document.getElementById("lockForgot").classList.toggle("hidden",mode!=="unlock");
+ setLockMsg("");
+ renderDots();
+ document.getElementById("lock").classList.remove("hidden");
+}
+
+function closeLock(){
+ pin.mode=null;
+ pin.buf="";
+ document.getElementById("lock").classList.add("hidden");
+}
+
+function cancelLock(){
+ if(pin.mode&&pin.mode!=="unlock")closeLock();
+}
+
+function pressKey(k){
+ if(!pin.mode||pin.busy)return;
+ if(Date.now()<pin.until){
+  setLockMsg("Tunggu "+Math.ceil((pin.until-Date.now())/1000)+" detik.");
+  return;
+ }
+ if(k==="del")pin.buf=pin.buf.slice(0,-1);
+ else if(pin.buf.length<PIN_LEN)pin.buf+=k;
+ setLockMsg("");
+ renderDots();
+ if(pin.buf.length===PIN_LEN)return handleComplete();
+}
+
+async function handleComplete(){
+ pin.busy=true;
+ const code=pin.buf;
+ try{
+  if(pin.mode==="unlock"||pin.mode==="verify"){
+   if(await verifyPin(code)){
+    pin.fails=0;
+    const done=pin.onDone;
+    closeLock();
+    hiddenAt=0;
+    if(done)done();
+   }else{
+    pin.fails++;
+    pin.buf="";
+    renderDots();
+    if(pin.fails>=5){
+     pin.fails=0;
+     pin.until=Date.now()+30000;
+     setLockMsg("Terlalu banyak percobaan. Coba lagi 30 detik.");
+    }else{
+     setLockMsg("PIN salah ("+pin.fails+"/5)");
+    }
+   }
+  }else if(pin.mode==="set1"){
+   pin.tmp=code;
+   pin.buf="";
+   pin.mode="set2";
+   document.getElementById("lockTitle").textContent="Ulangi PIN";
+   document.getElementById("lockSub").textContent="Masukkan sekali lagi";
+   renderDots();
+  }else if(pin.mode==="set2"){
+   if(code===pin.tmp){
+    await savePin(code);
+    closeLock();
+    updateSecurityUI();
+    showToast("PIN aktif 🔒","Aplikasi terkunci otomatis setelah 30 detik di latar belakang.","ok");
+   }else{
+    openLock("set1");
+    setLockMsg("PIN tidak sama. Ulangi dari awal.");
+   }
+  }
+ }finally{
+  pin.busy=false;
+ }
+}
+
+function updateSecurityUI(){
+ document.getElementById("pinStatus").textContent=hasPin()?"PIN aktif ✓":"PIN belum diatur.";
+ document.getElementById("pinBtns").innerHTML=hasPin()
+  ?'<button class="secondary" onclick="changePin()">Ubah PIN</button><button class="delete" style="width:100%;padding:13px" onclick="removePin()">Hapus PIN</button>'
+  :'<button style="grid-column:1/-1" onclick="startSetPin()">Atur PIN</button>';
+}
+
+function startSetPin(){
+ openLock("set1");
+}
+
+function changePin(){
+ openLock("verify",{onDone:function(){openLock("set1");}});
+}
+
+function removePin(){
+ openLock("verify",{onDone:function(){
+  localStorage.removeItem(PIN_KEY);
+  updateSecurityUI();
+  showToast("PIN dihapus","Aplikasi tidak lagi terkunci.","");
+ }});
+}
+
+function forgotPin(){
+ if(!confirm("Lupa PIN berarti SEMUA data (transaksi, anggaran, preset) harus dihapus supaya aplikasi bisa dibuka lagi.\n\nLanjutkan?"))return;
+ if(!confirm("Yakin? Data yang dihapus tidak bisa dikembalikan."))return;
+ [KEY,BUDGET_KEY,ALERT_KEY,PRESET_KEY,ACCOUNT_KEY,RECURRING_KEY,BACKUP_KEY,PIN_KEY].forEach(function(k){localStorage.removeItem(k);});
+ location.reload();
+}
+
+document.addEventListener("keydown",function(e){
+ if(!pin.mode)return;
+ if(/^\d$/.test(e.key))pressKey(e.key);
+ else if(e.key==="Backspace")pressKey("del");
+});
+
+document.addEventListener("visibilitychange",function(){
+ if(document.hidden){
+  hiddenAt=Date.now();
+ }else if(hasPin()&&hiddenAt&&Date.now()-hiddenAt>=30000&&!pin.mode){
+  openLock("unlock");
+ }
+});
+
 /* ---------- INIT ---------- */
 document.getElementById("month").value=new Date().toLocaleDateString("en-CA").slice(0,7);
 document.getElementById("month").addEventListener("change",render);
 document.getElementById("histFilter").addEventListener("change",render);
+document.getElementById("histSearch").addEventListener("input",renderHistory);
+document.getElementById("histCategory").addEventListener("change",renderHistory);
+document.getElementById("histAccount").addEventListener("change",renderHistory);
 document.getElementById("date").value=new Date().toLocaleDateString("en-CA");
 
+buildPad();
+updateSecurityUI();
+if(hasPin())openLock("unlock");
 load();
 localStorage.setItem(PRESET_KEY,JSON.stringify(presets));
 fillAccountSelects();
 fillCategorySelects();
 pmChange();
+rcChange();
 render();
+runRecurring();
 updateNotifStatus();
+updateBackupInfo();
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(function(){});
+setTimeout(backupReminder,600);
 initSW();
 </script>
 </body>

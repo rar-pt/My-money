@@ -1,6 +1,6 @@
 // MY MONEY service worker: cache offline + notifikasi.
 // Naikkan angka versi ini setiap kali kamu mengubah file aplikasi.
-const CACHE = "my-money-v1.0";
+const CACHE = "my-money-v1.3";
 const FILES = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"];
 
 self.addEventListener("install", e => {
